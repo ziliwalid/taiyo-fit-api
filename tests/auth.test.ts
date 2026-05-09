@@ -3,6 +3,7 @@ import app from '../src/app'
 import prisma from '../src/lib/prisma'
 
 afterAll(async () => {
+  await prisma.demandePack.deleteMany({})
   await prisma.utilisateur.deleteMany({ where: { email: { contains: '@test.com' } } })
   await prisma.$disconnect()
 })

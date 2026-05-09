@@ -18,6 +18,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await prisma.demandePack.deleteMany({})
   await prisma.comptePack.deleteMany({})
   await prisma.pack.deleteMany({})
   await prisma.utilisateur.deleteMany({ where: { email: { contains: '@test.com' } } })

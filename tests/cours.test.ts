@@ -22,6 +22,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await prisma.demandePack.deleteMany({})
   await prisma.reservation.deleteMany({})
   await prisma.cours.deleteMany({})
   await prisma.coach.deleteMany({})

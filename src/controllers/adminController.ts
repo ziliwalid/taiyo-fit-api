@@ -65,6 +65,44 @@ export async function createPack(req: Request, res: Response) {
   })
 }
 
+export async function updateStatutSeance(req: Request, res: Response) {
+  const id = parseInt(req.params.id as string)
+  const { statutSeance, messageCoach } = req.body
+
+  const validStatuts = ['PLANIFIE', 'EN_RETARD', 'LIEU_MODIFIE', 'ANNULE']
+  if (statutSeance && !validStatuts.includes(statutSeance)) {
+    res.status(400).json({ success: false, message: 'Statut invalide. Valeurs acceptées : PLANIFIE, EN_RETARD, LIEU_MODIFIE, ANNULE' })
+    return
+  }
+
+  const cours = await prisma.cours.findUnique({ where: { id } })
+  if (!cours) {
+    res.status(404).json({ success: false, message: 'Cours introuvable' })
+    return
+  }
+
+  const updated = await prisma.cours.update({
+    where: { id },
+    data: {
+      ...(statutSeance && { statutSeance }),
+      ...(messageCoach !== undefined && { messageCoach })
+    }
+  })
+
+  const labels: Record<string, string> = {
+    PLANIFIE: 'Séance planifiée normalement.',
+    EN_RETARD: 'Séance signalée en retard.',
+    LIEU_MODIFIE: 'Changement de lieu signalé.',
+    ANNULE: 'Séance annulée.'
+  }
+
+  res.json({
+    success: true,
+    message: statutSeance ? labels[statutSeance] : 'Message mis à jour.',
+    data: updated
+  })
+}
+
 export async function assignPack(req: Request, res: Response) {
   const { utilisateurId, packId } = req.body
   const pack = await prisma.pack.findUnique({ where: { id: packId } })

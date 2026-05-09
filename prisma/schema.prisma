@@ -42,7 +42,16 @@ model Cours {
   coach        Coach         @relation(fields: [coachId], references: [id])
   coachId      Int
   reservations Reservation[]
+  statutSeance StatutSeance  @default(PLANIFIE)
+  messageCoach String?
   createdAt    DateTime      @default(now())
+}
+
+enum StatutSeance {
+  PLANIFIE
+  EN_RETARD
+  LIEU_MODIFIE
+  ANNULE
 }
 
 model Reservation {
