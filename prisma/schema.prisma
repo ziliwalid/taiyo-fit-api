@@ -18,19 +18,23 @@ model Utilisateur {
   reservations Reservation[]
   comptePack   ComptePack?
   demandesPack DemandePack[]
+  coach        Coach?
   createdAt    DateTime       @default(now())
 }
 
 enum Role {
   ADMIN
+  COACH
   ADHERENT
 }
 
 model Coach {
-  id     Int     @id @default(autoincrement())
-  nom    String
-  prenom String
-  cours  Cours[]
+  id            Int          @id @default(autoincrement())
+  nom           String
+  prenom        String
+  cours         Cours[]
+  utilisateur   Utilisateur? @relation(fields: [utilisateurId], references: [id])
+  utilisateurId Int?         @unique
 }
 
 model Cours {

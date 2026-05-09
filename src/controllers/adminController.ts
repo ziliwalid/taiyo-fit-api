@@ -1,5 +1,42 @@
 import { Request, Response } from 'express'
+import bcrypt from 'bcryptjs'
 import prisma from '../lib/prisma'
+
+export async function createCoach(req: Request, res: Response) {
+  const { nom, prenom, email, password, telephone } = req.body
+  if (!nom || !prenom || !email || !password) {
+    res.status(400).json({ success: false, message: 'Champs requis manquants : nom, prenom, email, password' })
+    return
+  }
+
+  const exists = await prisma.utilisateur.findUnique({ where: { email } })
+  if (exists) {
+    res.status(409).json({ success: false, message: 'Cette adresse email est déjà utilisée' })
+    return
+  }
+
+  const hash = await bcrypt.hash(password, 10)
+
+  const [user, coach] = await prisma.$transaction([
+    prisma.utilisateur.create({
+      data: { email, password: hash, nom, prenom, telephone, role: 'COACH' }
+    }),
+    prisma.coach.create({
+      data: { nom, prenom }
+    })
+  ])
+
+  await prisma.coach.update({
+    where: { id: coach.id },
+    data: { utilisateurId: user.id }
+  })
+
+  res.status(201).json({
+    success: true,
+    message: `Compte coach créé pour ${prenom} ${nom}. ID coach : ${coach.id}`,
+    data: { userId: user.id, coachId: coach.id, email, nom, prenom }
+  })
+}
 
 export async function getParticipants(req: Request, res: Response) {
   const coursId = parseInt(req.params.id as string)

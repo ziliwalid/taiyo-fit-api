@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, assignPack, updateStatutSeance } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, assignPack, createCoach } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 
 const router = Router()
@@ -27,38 +27,6 @@ router.use(requireAuth, adminOnly)
  */
 router.get('/cours/:id/participants', getParticipants)
 
-/**
- * @openapi
- * /admin/cours/{id}/message:
- *   patch:
- *     tags: [Admin]
- *     summary: Mettre à jour le statut et/ou le message d'une séance
- *     security: [{ bearerAuth: [] }]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               statutSeance:
- *                 type: string
- *                 enum: [PLANIFIE, EN_RETARD, LIEU_MODIFIE, ANNULE]
- *               messageCoach:
- *                 type: string
- *                 example: "Je suis en retard de 10 minutes, on commence à 10h15 !"
- *     responses:
- *       200:
- *         description: Statut et/ou message mis à jour
- *       404:
- *         description: Cours introuvable
- */
-router.patch('/cours/:id/message', updateStatutSeance)
 
 /**
  * @openapi
@@ -181,6 +149,34 @@ router.post('/packs/assigner', assignPack)
  *       200:
  *         description: Liste des demandes avec infos adhérent et pack
  */
+/**
+ * @openapi
+ * /admin/coachs:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Créer un compte coach (Utilisateur COACH + Coach liés)
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nom, prenom, email, password]
+ *             properties:
+ *               nom:       { type: string, example: Dupont }
+ *               prenom:    { type: string, example: Sarah }
+ *               email:     { type: string, example: sarah@taiyofit.com }
+ *               password:  { type: string, example: coach2026 }
+ *               telephone: { type: string, example: "0612345678" }
+ *     responses:
+ *       201:
+ *         description: Compte coach créé avec userId et coachId
+ *       409:
+ *         description: Email déjà utilisé
+ */
+router.post('/coachs', createCoach)
+
 router.get('/packs/demandes', listDemandes)
 
 /**
