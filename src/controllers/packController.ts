@@ -7,6 +7,13 @@ export async function getMonPack(req: AuthRequest, res: Response) {
     where: { utilisateurId: req.user!.id },
     include: { pack: true }
   })
-  if (!compte) { res.status(404).json({ error: 'Aucun pack actif' }); return }
-  res.json(compte)
+  if (!compte) {
+    res.status(404).json({ success: false, message: "Vous n'avez pas de pack actif. Contactez Malak pour en obtenir un." })
+    return
+  }
+  res.json({
+    success: true,
+    message: `Pack "${compte.pack.nom}" actif — il vous reste ${compte.sessionsRestantes} session(s)`,
+    data: compte
+  })
 }

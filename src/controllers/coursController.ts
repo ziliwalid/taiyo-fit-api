@@ -7,7 +7,11 @@ export async function listCours(req: AuthRequest, res: Response) {
     include: { coach: { select: { nom: true, prenom: true } } },
     orderBy: { dateHeure: 'asc' }
   })
-  res.json(cours)
+  res.json({
+    success: true,
+    message: `${cours.length} cours disponible(s)`,
+    data: cours
+  })
 }
 
 export async function getCours(req: AuthRequest, res: Response) {
@@ -22,12 +26,25 @@ export async function getCours(req: AuthRequest, res: Response) {
       }
     }
   })
-  if (!cours) { res.status(404).json({ error: 'Cours introuvable' }); return }
+  if (!cours) {
+    res.status(404).json({ success: false, message: 'Ce cours est introuvable' })
+    return
+  }
+
+  const participants = cours.reservations.map((r: { utilisateur: { nom: string; prenom: string } }) => r.utilisateur)
+  const placesRestantes = cours.placesMax - participants.length
 
   res.json({
-    ...cours,
-    participants: cours.reservations.map((r: { utilisateur: { nom: string; prenom: string } }) => r.utilisateur),
-    nbParticipants: cours.reservations.length
+    success: true,
+    message: placesRestantes > 0
+      ? `${placesRestantes} place(s) restante(s) sur ${cours.placesMax}`
+      : 'Ce cours est complet',
+    data: {
+      ...cours,
+      participants,
+      nbParticipants: participants.length,
+      placesRestantes
+    }
   })
 }
 
@@ -39,15 +56,23 @@ export async function reserver(req: AuthRequest, res: Response) {
     where: { id: coursId },
     include: { reservations: { where: { statut: { not: 'ANNULE' } } } }
   })
-  if (!cours) { res.status(404).json({ error: 'Cours introuvable' }); return }
+  if (!cours) {
+    res.status(404).json({ success: false, message: 'Ce cours est introuvable' })
+    return
+  }
   if (cours.reservations.length >= cours.placesMax) {
-    res.status(409).json({ error: 'Cours complet' }); return
+    res.status(409).json({ success: false, message: 'Ce cours est complet, aucune place disponible' })
+    return
   }
 
   try {
     const resa = await prisma.reservation.create({ data: { utilisateurId, coursId } })
-    res.status(201).json(resa)
+    res.status(201).json({
+      success: true,
+      message: `Réservation pour "${cours.titre}" enregistrée ! En attente de confirmation par Malak.`,
+      data: resa
+    })
   } catch {
-    res.status(409).json({ error: 'Réservation déjà existante' })
+    res.status(409).json({ success: false, message: 'Vous êtes déjà inscrit à ce cours' })
   }
 }

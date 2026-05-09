@@ -10,32 +10,40 @@ function signToken(id: number, role: string) {
 export async function register(req: Request, res: Response) {
   const { email, password, nom, prenom, telephone } = req.body
   if (!email || !password || !nom || !prenom) {
-    res.status(400).json({ error: 'Champs requis manquants' })
+    res.status(400).json({ success: false, message: 'Champs requis manquants : email, password, nom, prenom' })
     return
   }
   const exists = await prisma.utilisateur.findUnique({ where: { email } })
   if (exists) {
-    res.status(409).json({ error: 'Email déjà utilisé' })
+    res.status(409).json({ success: false, message: 'Cette adresse email est déjà utilisée' })
     return
   }
   const hash = await bcrypt.hash(password, 10)
   const user = await prisma.utilisateur.create({
     data: { email, password: hash, nom, prenom, telephone }
   })
-  res.status(201).json({ token: signToken(user.id, user.role) })
+  res.status(201).json({
+    success: true,
+    message: `Bienvenue ${prenom} ! Votre compte a été créé avec succès.`,
+    token: signToken(user.id, user.role)
+  })
 }
 
 export async function login(req: Request, res: Response) {
   const { email, password } = req.body
   const user = await prisma.utilisateur.findUnique({ where: { email } })
   if (!user) {
-    res.status(401).json({ error: 'Identifiants incorrects' })
+    res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
     return
   }
   const valid = await bcrypt.compare(password, user.password)
   if (!valid) {
-    res.status(401).json({ error: 'Identifiants incorrects' })
+    res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
     return
   }
-  res.json({ token: signToken(user.id, user.role) })
+  res.json({
+    success: true,
+    message: `Bon retour ${user.prenom} !`,
+    token: signToken(user.id, user.role)
+  })
 }

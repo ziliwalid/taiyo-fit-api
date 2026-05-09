@@ -7,48 +7,85 @@ export async function getParticipants(req: Request, res: Response) {
     where: { coursId, statut: { not: 'ANNULE' } },
     include: { utilisateur: { select: { nom: true, prenom: true, telephone: true } } }
   })
-  res.json(reservations.map((r: { utilisateur: { nom: string; prenom: string; telephone: string | null } }) => r.utilisateur))
+  const participants = reservations.map((r: { utilisateur: { nom: string; prenom: string; telephone: string | null } }) => r.utilisateur)
+  res.json({
+    success: true,
+    message: `${participants.length} participant(s) inscrit(s) à ce cours`,
+    data: participants
+  })
 }
 
 export async function updateReservation(req: Request, res: Response) {
   const id = parseInt(req.params.id as string)
   const { statut } = req.body
   if (!['EN_ATTENTE', 'CONFIRME', 'ANNULE'].includes(statut)) {
-    res.status(400).json({ error: 'Statut invalide' }); return
+    res.status(400).json({ success: false, message: 'Statut invalide. Valeurs acceptées : EN_ATTENTE, CONFIRME, ANNULE' })
+    return
   }
   const resa = await prisma.reservation.update({ where: { id }, data: { statut } })
-  res.json(resa)
+  const messages: Record<string, string> = {
+    CONFIRME: 'Réservation confirmée — le paiement a bien été reçu.',
+    ANNULE: 'Réservation annulée.',
+    EN_ATTENTE: 'Réservation remise en attente.'
+  }
+  res.json({
+    success: true,
+    message: messages[statut],
+    data: resa
+  })
 }
 
 export async function createCours(req: Request, res: Response) {
   const { titre, dateHeure, dureeMinutes, placesMax, coachId } = req.body
   if (!titre || !dateHeure || !dureeMinutes || !placesMax || !coachId) {
-    res.status(400).json({ error: 'Champs requis manquants' }); return
+    res.status(400).json({ success: false, message: 'Champs requis manquants : titre, dateHeure, dureeMinutes, placesMax, coachId' })
+    return
   }
   const cours = await prisma.cours.create({
     data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId }
   })
-  res.status(201).json(cours)
+  res.status(201).json({
+    success: true,
+    message: `Cours "${titre}" créé avec succès.`,
+    data: cours
+  })
 }
 
 export async function createPack(req: Request, res: Response) {
   const { nom, nbSessions, description } = req.body
   if (!nom || !nbSessions) {
-    res.status(400).json({ error: 'Champs requis manquants' }); return
+    res.status(400).json({ success: false, message: 'Champs requis manquants : nom, nbSessions' })
+    return
   }
   const pack = await prisma.pack.create({ data: { nom, nbSessions, description } })
-  res.status(201).json(pack)
+  res.status(201).json({
+    success: true,
+    message: `Pack "${nom}" (${nbSessions} sessions) créé avec succès.`,
+    data: pack
+  })
 }
 
 export async function assignPack(req: Request, res: Response) {
   const { utilisateurId, packId } = req.body
   const pack = await prisma.pack.findUnique({ where: { id: packId } })
-  if (!pack) { res.status(404).json({ error: 'Pack introuvable' }); return }
+  if (!pack) {
+    res.status(404).json({ success: false, message: 'Pack introuvable' })
+    return
+  }
+  const user = await prisma.utilisateur.findUnique({ where: { id: utilisateurId } })
+  if (!user) {
+    res.status(404).json({ success: false, message: 'Adhérent introuvable' })
+    return
+  }
 
   const compte = await prisma.comptePack.upsert({
     where: { utilisateurId },
     update: { packId, sessionsRestantes: pack.nbSessions },
     create: { utilisateurId, packId, sessionsRestantes: pack.nbSessions }
   })
-  res.status(201).json(compte)
+  res.status(201).json({
+    success: true,
+    message: `Pack "${pack.nom}" assigné à ${user.prenom} ${user.nom} — ${pack.nbSessions} sessions disponibles.`,
+    data: compte
+  })
 }

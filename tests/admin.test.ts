@@ -47,7 +47,7 @@ describe('GET /admin/cours/:id/participants', () => {
       .get(`/admin/cours/${coursId}/participants`)
       .set('Authorization', `Bearer ${adminToken}`)
     expect(res.status).toBe(200)
-    expect(res.body[0]).toMatchObject({ nom: 'Dupont', prenom: 'Jean', telephone: '0600000001' })
+    expect(res.body.data[0]).toMatchObject({ nom: 'Dupont', prenom: 'Jean', telephone: '0600000001' })
   })
 
   it('blocks non-admin', async () => {
@@ -68,7 +68,7 @@ describe('PATCH /admin/reservations/:id', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ statut: 'CONFIRME' })
     expect(res.status).toBe(200)
-    expect(res.body.statut).toBe('CONFIRME')
+    expect(res.body.data.statut).toBe('CONFIRME')
   })
 
   it('rejects invalid statut', async () => {
@@ -87,7 +87,7 @@ describe('POST /admin/cours', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ titre: 'Bootcamp', dateHeure: '2026-08-01T07:00:00Z', dureeMinutes: 50, placesMax: 12, coachId })
     expect(res.status).toBe(201)
-    expect(res.body.titre).toBe('Bootcamp')
+    expect(res.body.data.titre).toBe('Bootcamp')
   })
 })
 
@@ -98,7 +98,7 @@ describe('POST /admin/packs', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ nom: 'Pack 5', nbSessions: 5, description: 'Découverte' })
     expect(res.status).toBe(201)
-    expect(res.body.nom).toBe('Pack 5')
+    expect(res.body.data.nom).toBe('Pack 5')
   })
 })
 
@@ -115,6 +115,6 @@ describe('POST /admin/packs/assigner', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ utilisateurId: u!.id, packId: pack.id })
     expect(res.status).toBe(201)
-    expect(res.body.sessionsRestantes).toBe(3)
+    expect(res.body.data.sessionsRestantes).toBe(3)
   })
 })

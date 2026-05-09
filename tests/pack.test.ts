@@ -28,8 +28,8 @@ describe('GET /mon-compte/pack', () => {
   it('returns active pack with sessions remaining', async () => {
     const res = await request(app).get('/mon-compte/pack').set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
-    expect(res.body.sessionsRestantes).toBe(7)
-    expect(res.body.pack.nom).toBe('Pack 10')
+    expect(res.body.data.sessionsRestantes).toBe(7)
+    expect(res.body.data.pack.nom).toBe('Pack 10')
   })
 
   it('returns 404 when no active pack', async () => {
