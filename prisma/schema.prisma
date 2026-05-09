@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilisateur {
+  id           Int            @id @default(autoincrement())
+  email        String         @unique
+  password     String
+  role         Role           @default(ADHERENT)
+  nom          String
+  prenom       String
+  telephone    String?
+  reservations Reservation[]
+  comptePack   ComptePack?
+  createdAt    DateTime       @default(now())
+}
+
+enum Role {
+  ADMIN
+  ADHERENT
+}
+
+model Coach {
+  id     Int     @id @default(autoincrement())
+  nom    String
+  prenom String
+  cours  Cours[]
+}
+
+model Cours {
+  id           Int           @id @default(autoincrement())
+  titre        String
+  dateHeure    DateTime
+  dureeMinutes Int
+  placesMax    Int
+  coach        Coach         @relation(fields: [coachId], references: [id])
+  coachId      Int
+  reservations Reservation[]
+  createdAt    DateTime      @default(now())
+}
+
+model Reservation {
+  id            Int               @id @default(autoincrement())
+  utilisateur   Utilisateur       @relation(fields: [utilisateurId], references: [id])
+  utilisateurId Int
+  cours         Cours             @relation(fields: [coursId], references: [id])
+  coursId       Int
+  statut        StatutReservation @default(EN_ATTENTE)
+  createdAt     DateTime          @default(now())
+
+  @@unique([utilisateurId, coursId])
+}
+
+enum StatutReservation {
+  EN_ATTENTE
+  CONFIRME
+  ANNULE
+}
+
+model Pack {
+  id          Int          @id @default(autoincrement())
+  nom         String
+  nbSessions  Int
+  description String?
+  comptes     ComptePack[]
+}
+
+model ComptePack {
+  id                Int         @id @default(autoincrement())
+  utilisateur       Utilisateur @relation(fields: [utilisateurId], references: [id])
+  utilisateurId     Int         @unique
+  pack              Pack        @relation(fields: [packId], references: [id])
+  packId            Int
+  sessionsRestantes Int
+  createdAt         DateTime    @default(now())
+}
