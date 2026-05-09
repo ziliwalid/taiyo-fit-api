@@ -1,4 +1,5 @@
 import { Response } from 'express'
+import { StatutReservation } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 
@@ -21,7 +22,7 @@ export async function getCours(req: AuthRequest, res: Response) {
     include: {
       coach: { select: { nom: true, prenom: true } },
       reservations: {
-        where: { statut: { not: 'ANNULE' } },
+        where: { statut: { not: StatutReservation.ANNULE } },
         include: { utilisateur: { select: { nom: true, prenom: true } } }
       }
     }
@@ -39,12 +40,7 @@ export async function getCours(req: AuthRequest, res: Response) {
     message: placesRestantes > 0
       ? `${placesRestantes} place(s) restante(s) sur ${cours.placesMax}`
       : 'Ce cours est complet',
-    data: {
-      ...cours,
-      participants,
-      nbParticipants: participants.length,
-      placesRestantes
-    }
+    data: { ...cours, participants, nbParticipants: participants.length, placesRestantes }
   })
 }
 
@@ -54,7 +50,7 @@ export async function reserver(req: AuthRequest, res: Response) {
 
   const cours = await prisma.cours.findUnique({
     where: { id: coursId },
-    include: { reservations: { where: { statut: { not: 'ANNULE' } } } }
+    include: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } }
   })
   if (!cours) {
     res.status(404).json({ success: false, message: 'Ce cours est introuvable' })

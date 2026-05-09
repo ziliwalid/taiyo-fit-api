@@ -1,4 +1,5 @@
 import { Response } from 'express'
+import { StatutDemande } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 import { sendDemandePackToAdmin, sendDemandeConfirmationToMembre, sendValidationConfirmationToMembre } from '../services/mailer'
@@ -53,22 +54,19 @@ export async function validerDemande(req: AuthRequest, res: Response) {
 
   const demande = await prisma.demandePack.findUnique({
     where: { id },
-    include: {
-      utilisateur: true,
-      pack: true
-    }
+    include: { utilisateur: true, pack: true }
   })
   if (!demande) {
     res.status(404).json({ success: false, message: 'Demande introuvable' })
     return
   }
-  if (demande.statut !== 'EN_ATTENTE') {
+  if (demande.statut !== StatutDemande.EN_ATTENTE) {
     res.status(409).json({ success: false, message: `Cette demande est déjà ${demande.statut.toLowerCase()}` })
     return
   }
 
   const [updatedDemande, compte] = await prisma.$transaction([
-    prisma.demandePack.update({ where: { id }, data: { statut: 'VALIDE' } }),
+    prisma.demandePack.update({ where: { id }, data: { statut: StatutDemande.VALIDE } }),
     prisma.comptePack.upsert({
       where: { utilisateurId: demande.utilisateurId },
       update: { packId: demande.packId, sessionsRestantes: demande.pack.nbSessions },
@@ -104,12 +102,12 @@ export async function refuserDemande(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, message: 'Demande introuvable' })
     return
   }
-  if (demande.statut !== 'EN_ATTENTE') {
+  if (demande.statut !== StatutDemande.EN_ATTENTE) {
     res.status(409).json({ success: false, message: `Cette demande est déjà ${demande.statut.toLowerCase()}` })
     return
   }
 
-  const updated = await prisma.demandePack.update({ where: { id }, data: { statut: 'REFUSE' } })
+  const updated = await prisma.demandePack.update({ where: { id }, data: { statut: StatutDemande.REFUSE } })
 
   res.json({
     success: true,

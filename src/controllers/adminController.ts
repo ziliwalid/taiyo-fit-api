@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
+import { Role, StatutReservation, StatutSeance } from '@prisma/client'
 import prisma from '../lib/prisma'
 
 export async function createCoach(req: Request, res: Response) {
@@ -19,7 +20,7 @@ export async function createCoach(req: Request, res: Response) {
 
   const [user, coach] = await prisma.$transaction([
     prisma.utilisateur.create({
-      data: { email, password: hash, nom, prenom, telephone, role: 'COACH' }
+      data: { email, password: hash, nom, prenom, telephone, role: Role.COACH }
     }),
     prisma.coach.create({
       data: { nom, prenom }
@@ -41,7 +42,7 @@ export async function createCoach(req: Request, res: Response) {
 export async function getParticipants(req: Request, res: Response) {
   const coursId = parseInt(req.params.id as string)
   const reservations = await prisma.reservation.findMany({
-    where: { coursId, statut: { not: 'ANNULE' } },
+    where: { coursId, statut: { not: StatutReservation.ANNULE } },
     include: { utilisateur: { select: { nom: true, prenom: true, telephone: true } } }
   })
   const participants = reservations.map((r: { utilisateur: { nom: string; prenom: string; telephone: string | null } }) => r.utilisateur)
@@ -55,21 +56,24 @@ export async function getParticipants(req: Request, res: Response) {
 export async function updateReservation(req: Request, res: Response) {
   const id = parseInt(req.params.id as string)
   const { statut } = req.body
-  if (!['EN_ATTENTE', 'CONFIRME', 'ANNULE'].includes(statut)) {
-    res.status(400).json({ success: false, message: 'Statut invalide. Valeurs acceptées : EN_ATTENTE, CONFIRME, ANNULE' })
+
+  if (!Object.values(StatutReservation).includes(statut)) {
+    res.status(400).json({
+      success: false,
+      message: `Statut invalide. Valeurs acceptées : ${Object.values(StatutReservation).join(', ')}`
+    })
     return
   }
+
   const resa = await prisma.reservation.update({ where: { id }, data: { statut } })
-  const messages: Record<string, string> = {
-    CONFIRME: 'Réservation confirmée — le paiement a bien été reçu.',
-    ANNULE: 'Réservation annulée.',
-    EN_ATTENTE: 'Réservation remise en attente.'
+
+  const messages: Record<StatutReservation, string> = {
+    [StatutReservation.CONFIRME]: 'Réservation confirmée — le paiement a bien été reçu.',
+    [StatutReservation.ANNULE]: 'Réservation annulée.',
+    [StatutReservation.EN_ATTENTE]: 'Réservation remise en attente.'
   }
-  res.json({
-    success: true,
-    message: messages[statut],
-    data: resa
-  })
+
+  res.json({ success: true, message: messages[statut as StatutReservation], data: resa })
 }
 
 export async function createCours(req: Request, res: Response) {
@@ -106,9 +110,11 @@ export async function updateStatutSeance(req: Request, res: Response) {
   const id = parseInt(req.params.id as string)
   const { statutSeance, messageCoach } = req.body
 
-  const validStatuts = ['PLANIFIE', 'EN_RETARD', 'LIEU_MODIFIE', 'ANNULE']
-  if (statutSeance && !validStatuts.includes(statutSeance)) {
-    res.status(400).json({ success: false, message: 'Statut invalide. Valeurs acceptées : PLANIFIE, EN_RETARD, LIEU_MODIFIE, ANNULE' })
+  if (statutSeance && !Object.values(StatutSeance).includes(statutSeance)) {
+    res.status(400).json({
+      success: false,
+      message: `Statut invalide. Valeurs acceptées : ${Object.values(StatutSeance).join(', ')}`
+    })
     return
   }
 
@@ -126,16 +132,16 @@ export async function updateStatutSeance(req: Request, res: Response) {
     }
   })
 
-  const labels: Record<string, string> = {
-    PLANIFIE: 'Séance planifiée normalement.',
-    EN_RETARD: 'Séance signalée en retard.',
-    LIEU_MODIFIE: 'Changement de lieu signalé.',
-    ANNULE: 'Séance annulée.'
+  const labels: Record<StatutSeance, string> = {
+    [StatutSeance.PLANIFIE]: 'Séance planifiée normalement.',
+    [StatutSeance.EN_RETARD]: 'Séance signalée en retard.',
+    [StatutSeance.LIEU_MODIFIE]: 'Changement de lieu signalé.',
+    [StatutSeance.ANNULE]: 'Séance annulée.'
   }
 
   res.json({
     success: true,
-    message: statutSeance ? labels[statutSeance] : 'Message mis à jour.',
+    message: statutSeance ? labels[statutSeance as StatutSeance] : 'Message mis à jour.',
     data: updated
   })
 }
