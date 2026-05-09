@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { getMonPack } from '../controllers/packController'
+import { demanderPack } from '../controllers/demandePackController'
 
 const router = Router()
 router.use(requireAuth)
@@ -19,5 +20,29 @@ router.use(requireAuth)
  *         description: Aucun pack actif
  */
 router.get('/pack', getMonPack)
+
+/**
+ * @openapi
+ * /mon-compte/pack/demander:
+ *   post:
+ *     tags: [Mon compte]
+ *     summary: Demander un pack (envoie un email à Malak + confirmation au membre)
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [packId]
+ *             properties:
+ *               packId: { type: integer, example: 1 }
+ *     responses:
+ *       201:
+ *         description: Demande enregistrée et emails envoyés
+ *       404:
+ *         description: Pack introuvable
+ */
+router.post('/pack/demander', demanderPack)
 
 export default router

@@ -17,6 +17,7 @@ model Utilisateur {
   telephone    String?
   reservations Reservation[]
   comptePack   ComptePack?
+  demandesPack DemandePack[]
   createdAt    DateTime       @default(now())
 }
 
@@ -63,11 +64,28 @@ enum StatutReservation {
 }
 
 model Pack {
-  id          Int          @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   nom         String
   nbSessions  Int
   description String?
   comptes     ComptePack[]
+  demandes    DemandePack[]
+}
+
+model DemandePack {
+  id            Int                @id @default(autoincrement())
+  utilisateur   Utilisateur        @relation(fields: [utilisateurId], references: [id])
+  utilisateurId Int
+  pack          Pack               @relation(fields: [packId], references: [id])
+  packId        Int
+  statut        StatutDemande      @default(EN_ATTENTE)
+  createdAt     DateTime           @default(now())
+}
+
+enum StatutDemande {
+  EN_ATTENTE
+  VALIDE
+  REFUSE
 }
 
 model ComptePack {

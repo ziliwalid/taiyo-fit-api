@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
 import { getParticipants, updateReservation, createCours, createPack, assignPack } from '../controllers/adminController'
+import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 
 const router = Router()
 router.use(requireAuth, adminOnly)
@@ -31,7 +32,7 @@ router.get('/cours/:id/participants', getParticipants)
  * /admin/reservations/{id}:
  *   patch:
  *     tags: [Admin]
- *     summary: Confirmer ou annuler une réservation
+ *     summary: Confirmer ou annuler une réservation de cours
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
@@ -116,7 +117,7 @@ router.post('/packs', createPack)
  * /admin/packs/assigner:
  *   post:
  *     tags: [Admin]
- *     summary: Assigner un pack à un adhérent
+ *     summary: Assigner directement un pack à un adhérent (sans demande)
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -135,5 +136,62 @@ router.post('/packs', createPack)
  *         description: Pack ou adhérent introuvable
  */
 router.post('/packs/assigner', assignPack)
+
+/**
+ * @openapi
+ * /admin/packs/demandes:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Lister toutes les demandes de pack
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste des demandes avec infos adhérent et pack
+ */
+router.get('/packs/demandes', listDemandes)
+
+/**
+ * @openapi
+ * /admin/packs/demandes/{id}/valider:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Valider une demande de pack (active le pack + email au membre)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Demande validée, pack activé, email envoyé au membre
+ *       404:
+ *         description: Demande introuvable
+ *       409:
+ *         description: Demande déjà traitée
+ */
+router.patch('/packs/demandes/:id/valider', validerDemande)
+
+/**
+ * @openapi
+ * /admin/packs/demandes/{id}/refuser:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Refuser une demande de pack
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Demande refusée
+ *       404:
+ *         description: Demande introuvable
+ *       409:
+ *         description: Demande déjà traitée
+ */
+router.patch('/packs/demandes/:id/refuser', refuserDemande)
 
 export default router
