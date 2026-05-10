@@ -18,6 +18,7 @@ model Utilisateur {
   reservations Reservation[]
   comptePack   ComptePack?
   demandesPack DemandePack[]
+  paiements    Paiement[]
   coach        Coach?
   createdAt    DateTime       @default(now())
 }
@@ -87,6 +88,27 @@ model Pack {
   tag         String?
   comptes     ComptePack[]
   demandes    DemandePack[]
+  paiements   Paiement[]
+}
+
+model Paiement {
+  id               String         @id @default(cuid())
+  utilisateurId    Int
+  packId           Int
+  stripeSessionId  String         @unique
+  stripePaymentId  String?
+  montant          Float
+  statut           StatutPaiement @default(EN_ATTENTE)
+  createdAt        DateTime       @default(now())
+  utilisateur      Utilisateur    @relation(fields: [utilisateurId], references: [id])
+  pack             Pack           @relation(fields: [packId], references: [id])
+}
+
+enum StatutPaiement {
+  EN_ATTENTE
+  REUSSI
+  ECHOUE
+  REMBOURSE
 }
 
 model DemandePack {
