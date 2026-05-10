@@ -170,11 +170,10 @@ export async function stripeWebhook(req: Request, res: Response) {
 // Called by the success page to show confirmation details.
 
 export async function getSession(req: AuthRequest, res: Response) {
-  const { sessionId } = req.params
+  const sessionId = req.params.sessionId as string
 
   const paiement = await prisma.paiement.findUnique({
-    where:   { stripeSessionId: sessionId },
-    include: { pack: true },
+    where: { stripeSessionId: sessionId },
   })
 
   if (!paiement || paiement.utilisateurId !== req.user!.id) {
@@ -182,17 +181,24 @@ export async function getSession(req: AuthRequest, res: Response) {
     return
   }
 
-  // Also fetch live status from Stripe so we don't depend solely on webhook timing
-  const session = await stripe.checkout.sessions.retrieve(sessionId)
+  const [stripeSession, pack] = await Promise.all([
+    stripe.checkout.sessions.retrieve(sessionId),
+    prisma.pack.findUnique({ where: { id: paiement.packId } }),
+  ])
+
+  if (!pack) {
+    res.status(404).json({ success: false, message: 'Pack introuvable' })
+    return
+  }
 
   res.json({
     success: true,
     data: {
-      statut:        paiement.statut,
-      stripeStatus:  session.payment_status, // 'paid' | 'unpaid' | 'no_payment_required'
-      packNom:       paiement.pack.nom,
-      nbSessions:    paiement.pack.nbSessions,
-      montant:       paiement.montant,
+      statut:       paiement.statut,
+      stripeStatus: stripeSession.payment_status,
+      packNom:      pack.nom,
+      nbSessions:   pack.nbSessions,
+      montant:      paiement.montant,
     },
   })
 }
