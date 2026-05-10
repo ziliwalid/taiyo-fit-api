@@ -1,6 +1,11 @@
-import { Response } from 'express'
+import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
+
+export async function listPacks(_req: Request, res: Response) {
+  const packs = await prisma.pack.findMany({ orderBy: { id: 'asc' } })
+  res.json({ success: true, message: `${packs.length} pack(s) disponibles`, data: packs })
+}
 
 export async function getMonPack(req: AuthRequest, res: Response) {
   const compte = await prisma.comptePack.findUnique({

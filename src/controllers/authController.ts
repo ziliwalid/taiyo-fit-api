@@ -44,6 +44,7 @@ export async function login(req: Request, res: Response) {
   res.json({
     success: true,
     message: `Bon retour ${user.prenom} !`,
-    token: signToken(user.id, user.role)
+    token: signToken(user.id, user.role),
+    prenom: user.prenom,
   })
 }

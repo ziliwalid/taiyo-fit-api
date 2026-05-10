@@ -77,13 +77,13 @@ export async function updateReservation(req: Request, res: Response) {
 }
 
 export async function createCours(req: Request, res: Response) {
-  const { titre, dateHeure, dureeMinutes, placesMax, coachId } = req.body
+  const { titre, dateHeure, dureeMinutes, placesMax, coachId, adresse, imageUrl } = req.body
   if (!titre || !dateHeure || !dureeMinutes || !placesMax || !coachId) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : titre, dateHeure, dureeMinutes, placesMax, coachId' })
     return
   }
   const cours = await prisma.cours.create({
-    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId }
+    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) }
   })
   res.status(201).json({
     success: true,
@@ -93,17 +93,51 @@ export async function createCours(req: Request, res: Response) {
 }
 
 export async function createPack(req: Request, res: Response) {
-  const { nom, nbSessions, description } = req.body
+  const { nom, nbSessions, tarif, description, tag } = req.body
   if (!nom || !nbSessions) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : nom, nbSessions' })
     return
   }
-  const pack = await prisma.pack.create({ data: { nom, nbSessions, description } })
+  const pack = await prisma.pack.create({
+    data: {
+      nom, nbSessions, description,
+      ...(tarif != null && { tarif: parseFloat(tarif) }),
+      ...(tag ? { tag } : {})
+    }
+  })
   res.status(201).json({
     success: true,
-    message: `Pack "${nom}" (${nbSessions} sessions) créé avec succès.`,
+    message: `Pack "${nom}" créé avec succès.`,
     data: pack
   })
+}
+
+export async function updatePack(req: Request, res: Response) {
+  const id = parseInt(req.params.id as string)
+  const { tag } = req.body
+  const pack = await prisma.pack.findUnique({ where: { id } })
+  if (!pack) {
+    res.status(404).json({ success: false, message: 'Pack introuvable' })
+    return
+  }
+  const updated = await prisma.pack.update({
+    where: { id },
+    data: { tag: tag ?? null }
+  })
+  res.json({ success: true, message: 'Tag mis à jour.', data: updated })
+}
+
+export async function listPacks(req: Request, res: Response) {
+  const packs = await prisma.pack.findMany({ orderBy: { id: 'asc' } })
+  res.json({ success: true, message: `${packs.length} pack(s)`, data: packs })
+}
+
+export async function listCoaches(req: Request, res: Response) {
+  const coaches = await prisma.coach.findMany({
+    select: { id: true, nom: true, prenom: true },
+    orderBy: { prenom: 'asc' }
+  })
+  res.json({ success: true, message: `${coaches.length} coach(s)`, data: coaches })
 }
 
 export async function updateStatutSeance(req: Request, res: Response) {
@@ -124,11 +158,14 @@ export async function updateStatutSeance(req: Request, res: Response) {
     return
   }
 
+  const { adresse, imageUrl } = req.body
   const updated = await prisma.cours.update({
     where: { id },
     data: {
       ...(statutSeance && { statutSeance }),
-      ...(messageCoach !== undefined && { messageCoach })
+      ...(messageCoach !== undefined && { messageCoach }),
+      ...(adresse !== undefined && { adresse: adresse || null }),
+      ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     }
   })
 

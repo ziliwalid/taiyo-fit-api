@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, assignPack, createCoach } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, listPacks, assignPack, createCoach, listCoaches, updateStatutSeance } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 
 const router = Router()
@@ -58,6 +58,7 @@ router.get('/cours/:id/participants', getParticipants)
  *         description: Statut invalide
  */
 router.patch('/reservations/:id', updateReservation)
+router.patch('/cours/:id/statut', updateStatutSeance)
 
 /**
  * @openapi
@@ -111,7 +112,10 @@ router.post('/cours', createCours)
  *       400:
  *         description: Champs requis manquants
  */
+router.get('/packs', listPacks)
 router.post('/packs', createPack)
+router.patch('/packs/:id', updatePack)
+router.get('/coachs', listCoaches)
 
 /**
  * @openapi

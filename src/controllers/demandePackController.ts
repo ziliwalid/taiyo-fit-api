@@ -23,6 +23,28 @@ export async function demanderPack(req: AuthRequest, res: Response) {
     return
   }
 
+  // Un adhérent ne peut avoir qu'un seul pack actif à la fois
+  const compteActif = await prisma.comptePack.findUnique({ where: { utilisateurId: user.id } })
+  if (compteActif && compteActif.sessionsRestantes > 0) {
+    res.status(409).json({
+      success: false,
+      message: `Tu as déjà un pack actif avec ${compteActif.sessionsRestantes} session(s) restante(s). Épuise ton pack avant d'en demander un nouveau.`
+    })
+    return
+  }
+
+  // Pas de doublon sur une demande en attente
+  const demandeEnAttente = await prisma.demandePack.findFirst({
+    where: { utilisateurId: user.id, statut: StatutDemande.EN_ATTENTE }
+  })
+  if (demandeEnAttente) {
+    res.status(409).json({
+      success: false,
+      message: 'Tu as déjà une demande de pack en attente de validation par Malak.'
+    })
+    return
+  }
+
   const demande = await prisma.demandePack.create({
     data: { utilisateurId: user.id, packId: pack.id }
   })

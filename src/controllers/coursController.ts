@@ -61,11 +61,28 @@ export async function reserver(req: AuthRequest, res: Response) {
     return
   }
 
+  // Vérifier que l'adhérent a un pack actif avec des sessions disponibles
+  const comptePack = await prisma.comptePack.findUnique({ where: { utilisateurId } })
+  if (!comptePack || comptePack.sessionsRestantes <= 0) {
+    res.status(403).json({
+      success: false,
+      message: "Tu dois avoir un pack actif avec des sessions disponibles pour réserver un cours. Contacte Malak pour obtenir un pack."
+    })
+    return
+  }
+
   try {
-    const resa = await prisma.reservation.create({ data: { utilisateurId, coursId } })
+    // Créer la réservation ET décrémenter la session du pack en une seule transaction
+    const [resa] = await prisma.$transaction([
+      prisma.reservation.create({ data: { utilisateurId, coursId } }),
+      prisma.comptePack.update({
+        where: { utilisateurId },
+        data: { sessionsRestantes: { decrement: 1 } }
+      })
+    ])
     res.status(201).json({
       success: true,
-      message: `Réservation pour "${cours.titre}" enregistrée ! En attente de confirmation par Malak.`,
+      message: `Réservation pour "${cours.titre}" confirmée ! Il te reste ${comptePack.sessionsRestantes - 1} session(s) dans ton pack.`,
       data: resa
     })
   } catch {

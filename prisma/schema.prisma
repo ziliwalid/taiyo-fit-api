@@ -48,6 +48,8 @@ model Cours {
   reservations Reservation[]
   statutSeance StatutSeance  @default(PLANIFIE)
   messageCoach String?
+  adresse      String?
+  imageUrl     String?
   createdAt    DateTime      @default(now())
 }
 
@@ -80,7 +82,9 @@ model Pack {
   id          Int           @id @default(autoincrement())
   nom         String
   nbSessions  Int
+  tarif       Float?
   description String?
+  tag         String?
   comptes     ComptePack[]
   demandes    DemandePack[]
 }
