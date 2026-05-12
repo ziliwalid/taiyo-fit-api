@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
-import { Role, StatutReservation, StatutSeance } from '@prisma/client'
+import { Role, StatutReservation, StatutSeance, StatutPaiement, StatutDemande } from '@prisma/client'
 import prisma from '../lib/prisma'
 
 export async function createCoach(req: Request, res: Response) {
@@ -93,7 +93,7 @@ export async function createCours(req: Request, res: Response) {
 }
 
 export async function createPack(req: Request, res: Response) {
-  const { nom, nbSessions, tarif, description, tag } = req.body
+  const { nom, nbSessions, tarif, ancienTarif, description, tag } = req.body
   if (!nom || !nbSessions) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : nom, nbSessions' })
     return
@@ -102,6 +102,7 @@ export async function createPack(req: Request, res: Response) {
     data: {
       nom, nbSessions, description,
       ...(tarif != null && { tarif: parseFloat(tarif) }),
+      ...(ancienTarif != null && { ancienTarif: parseFloat(ancienTarif) }),
       ...(tag ? { tag } : {})
     }
   })
@@ -114,7 +115,7 @@ export async function createPack(req: Request, res: Response) {
 
 export async function updatePack(req: Request, res: Response) {
   const id = parseInt(req.params.id as string)
-  const { tag } = req.body
+  const { tag, nom, nbSessions, tarif, ancienTarif, description } = req.body
   const pack = await prisma.pack.findUnique({ where: { id } })
   if (!pack) {
     res.status(404).json({ success: false, message: 'Pack introuvable' })
@@ -122,9 +123,16 @@ export async function updatePack(req: Request, res: Response) {
   }
   const updated = await prisma.pack.update({
     where: { id },
-    data: { tag: tag ?? null }
+    data: {
+      ...(tag !== undefined && { tag: tag || null }),
+      ...(nom && { nom }),
+      ...(nbSessions != null && { nbSessions: parseInt(nbSessions) }),
+      ...(tarif !== undefined && { tarif: tarif !== '' && tarif != null ? parseFloat(tarif) : null }),
+      ...(ancienTarif !== undefined && { ancienTarif: ancienTarif !== '' && ancienTarif != null ? parseFloat(ancienTarif) : null }),
+      ...(description !== undefined && { description: description || null }),
+    }
   })
-  res.json({ success: true, message: 'Tag mis à jour.', data: updated })
+  res.json({ success: true, message: 'Pack mis à jour.', data: updated })
 }
 
 export async function listPacks(req: Request, res: Response) {
@@ -173,13 +181,62 @@ export async function updateStatutSeance(req: Request, res: Response) {
     [StatutSeance.PLANIFIE]: 'Séance planifiée normalement.',
     [StatutSeance.EN_RETARD]: 'Séance signalée en retard.',
     [StatutSeance.LIEU_MODIFIE]: 'Changement de lieu signalé.',
-    [StatutSeance.ANNULE]: 'Séance annulée.'
+    [StatutSeance.ANNULE]: 'Séance annulée.',
+    [StatutSeance.EFFECTUE]: 'Séance marquée comme effectuée.'
   }
 
   res.json({
     success: true,
     message: statutSeance ? labels[statutSeance as StatutSeance] : 'Message mis à jour.',
     data: updated
+  })
+}
+
+export async function listMembres(req: Request, res: Response) {
+  const membres = await prisma.utilisateur.findMany({
+    where: { role: Role.ADHERENT },
+    select: {
+      id: true, nom: true, prenom: true, email: true, telephone: true,
+      actif: true, createdAt: true,
+      comptePack: { select: { sessionsRestantes: true, pack: { select: { nom: true } } } }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+  res.json({ success: true, message: `${membres.length} adhérent(s)`, data: membres })
+}
+
+export async function listCoachesDetailed(req: Request, res: Response) {
+  const coachs = await prisma.utilisateur.findMany({
+    where: { role: Role.COACH },
+    select: {
+      id: true, nom: true, prenom: true, email: true, telephone: true,
+      actif: true, createdAt: true,
+      coach: { select: { id: true, cours: { select: { id: true } } } }
+    },
+    orderBy: { prenom: 'asc' }
+  })
+  res.json({ success: true, message: `${coachs.length} coach(s)`, data: coachs })
+}
+
+export async function toggleActif(req: Request, res: Response) {
+  const id = parseInt(req.params.id as string)
+  const user = await prisma.utilisateur.findUnique({ where: { id } })
+  if (!user) {
+    res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+    return
+  }
+  if (user.role === Role.ADMIN) {
+    res.status(403).json({ success: false, message: 'Impossible de bloquer un admin' })
+    return
+  }
+  const updated = await prisma.utilisateur.update({
+    where: { id },
+    data: { actif: !user.actif }
+  })
+  res.json({
+    success: true,
+    message: updated.actif ? `${user.prenom} ${user.nom} débloqué(e).` : `${user.prenom} ${user.nom} bloqué(e).`,
+    data: { id: updated.id, actif: updated.actif }
   })
 }
 
@@ -205,5 +262,106 @@ export async function assignPack(req: Request, res: Response) {
     success: true,
     message: `Pack "${pack.nom}" assigné à ${user.prenom} ${user.nom} — ${pack.nbSessions} sessions disponibles.`,
     data: compte
+  })
+}
+
+export async function listTransactions(req: Request, res: Response) {
+  const { statut, from, to } = req.query
+
+  const where: {
+    statut?: StatutPaiement
+    createdAt?: { gte?: Date; lte?: Date }
+  } = {}
+
+  if (statut && Object.values(StatutPaiement).includes(statut as StatutPaiement)) {
+    where.statut = statut as StatutPaiement
+  }
+  if (from || to) {
+    where.createdAt = {}
+    if (from) where.createdAt.gte = new Date(from as string)
+    if (to) {
+      const toDate = new Date(to as string)
+      toDate.setHours(23, 59, 59, 999)
+      where.createdAt.lte = toDate
+    }
+  }
+
+  const transactions = await prisma.paiement.findMany({
+    where,
+    include: {
+      utilisateur: { select: { nom: true, prenom: true, email: true } },
+      pack: { select: { nom: true, nbSessions: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  res.json({
+    success: true,
+    message: `${transactions.length} transaction(s)`,
+    data: transactions,
+  })
+}
+
+export async function getStats(req: Request, res: Response) {
+  const [
+    paiementsReussis,
+    totalAdherents,
+    adherentsActifs,
+    adherentsSansPack,
+    demandesEnAttente,
+    totalSeances,
+    seancesEffectuees,
+  ] = await Promise.all([
+    prisma.paiement.findMany({
+      where: { statut: StatutPaiement.REUSSI },
+      select: { montant: true },
+    }),
+    prisma.utilisateur.count({ where: { role: Role.ADHERENT } }),
+    prisma.utilisateur.count({ where: { role: Role.ADHERENT, actif: true } }),
+    prisma.utilisateur.count({
+      where: {
+        role: Role.ADHERENT,
+        OR: [
+          { comptePack: { is: null } },
+          { comptePack: { sessionsRestantes: 0 } },
+        ],
+      },
+    }),
+    prisma.demandePack.count({ where: { statut: StatutDemande.EN_ATTENTE } }),
+    prisma.cours.count(),
+    prisma.cours.count({ where: { statutSeance: StatutSeance.EFFECTUE } }),
+  ])
+
+  const totalBrut = paiementsReussis.reduce((sum, p) => sum + p.montant, 0)
+  const nbPaiements = paiementsReussis.length
+  // Estimation frais Stripe : 1.5 % + 0.25 € / transaction (tarif EU standard)
+  const stripeFees = Math.round((totalBrut * 0.015 + nbPaiements * 0.25) * 100) / 100
+  const totalNet = Math.round((totalBrut - stripeFees) * 100) / 100
+
+  res.json({
+    success: true,
+    message: 'Statistiques plateforme',
+    data: {
+      revenus: {
+        brut: Math.round(totalBrut * 100) / 100,
+        net: totalNet,
+        stripeFees,
+        nbPaiements,
+      },
+      adherents: {
+        total: totalAdherents,
+        actifs: adherentsActifs,
+        bloques: totalAdherents - adherentsActifs,
+        sansPack: adherentsSansPack,
+      },
+      seances: {
+        total: totalSeances,
+        aVenir: totalSeances - seancesEffectuees,
+        effectuees: seancesEffectuees,
+      },
+      demandes: {
+        enAttente: demandesEnAttente,
+      },
+    },
   })
 }

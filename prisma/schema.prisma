@@ -15,6 +15,7 @@ model Utilisateur {
   nom          String
   prenom       String
   telephone    String?
+  actif        Boolean        @default(true)
   reservations Reservation[]
   comptePack   ComptePack?
   demandesPack DemandePack[]
@@ -59,6 +60,7 @@ enum StatutSeance {
   EN_RETARD
   LIEU_MODIFIE
   ANNULE
+  EFFECTUE
 }
 
 model Reservation {
@@ -84,6 +86,7 @@ model Pack {
   nom         String
   nbSessions  Int
   tarif       Float?
+  ancienTarif Float?
   description String?
   tag         String?
   comptes     ComptePack[]

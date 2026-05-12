@@ -41,10 +41,15 @@ export async function login(req: Request, res: Response) {
     res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
     return
   }
+  if (!user.actif) {
+    res.status(403).json({ success: false, message: 'Votre compte a été suspendu. Contactez Malak.' })
+    return
+  }
   res.json({
     success: true,
     message: `Bon retour ${user.prenom} !`,
     token: signToken(user.id, user.role),
     prenom: user.prenom,
+    actif: user.actif,
   })
 }

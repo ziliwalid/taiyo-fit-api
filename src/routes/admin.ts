@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, updatePack, listPacks, assignPack, createCoach, listCoaches, updateStatutSeance } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, listPacks, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 
 const router = Router()
@@ -112,10 +112,15 @@ router.post('/cours', createCours)
  *       400:
  *         description: Champs requis manquants
  */
+router.get('/stats', getStats)
+router.get('/transactions', listTransactions)
 router.get('/packs', listPacks)
 router.post('/packs', createPack)
 router.patch('/packs/:id', updatePack)
 router.get('/coachs', listCoaches)
+router.get('/membres', listMembres)
+router.get('/coachs/details', listCoachesDetailed)
+router.patch('/utilisateurs/:id/actif', toggleActif)
 
 /**
  * @openapi

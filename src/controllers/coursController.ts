@@ -1,9 +1,20 @@
 import { Response } from 'express'
-import { StatutReservation } from '@prisma/client'
+import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 
+async function marquerSeancesEffectuees() {
+  await prisma.cours.updateMany({
+    where: {
+      dateHeure: { lt: new Date() },
+      statutSeance: { notIn: [StatutSeance.ANNULE, StatutSeance.EFFECTUE] }
+    },
+    data: { statutSeance: StatutSeance.EFFECTUE }
+  })
+}
+
 export async function listCours(req: AuthRequest, res: Response) {
+  await marquerSeancesEffectuees()
   const cours = await prisma.cours.findMany({
     include: { coach: { select: { nom: true, prenom: true } } },
     orderBy: { dateHeure: 'asc' }
@@ -54,6 +65,14 @@ export async function reserver(req: AuthRequest, res: Response) {
   })
   if (!cours) {
     res.status(404).json({ success: false, message: 'Ce cours est introuvable' })
+    return
+  }
+  if (cours.statutSeance === StatutSeance.EFFECTUE || new Date(cours.dateHeure) < new Date()) {
+    res.status(409).json({ success: false, message: 'Cette séance est déjà effectuée, elle n\'est plus réservable' })
+    return
+  }
+  if (cours.statutSeance === StatutSeance.ANNULE) {
+    res.status(409).json({ success: false, message: 'Cette séance est annulée, elle n\'est plus réservable' })
     return
   }
   if (cours.reservations.length >= cours.placesMax) {

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
-import { getMonPack } from '../controllers/packController'
+import { getMonPack, getMonDashboard } from '../controllers/packController'
 import { demanderPack } from '../controllers/demandePackController'
 
 const router = Router()
@@ -19,6 +19,7 @@ router.use(requireAuth)
  *       404:
  *         description: Aucun pack actif
  */
+router.get('/dashboard', getMonDashboard)
 router.get('/pack', getMonPack)
 
 /**
