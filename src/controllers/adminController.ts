@@ -235,7 +235,7 @@ export async function updateStatutSeance(req: Request, res: Response) {
   }
 
   const { adresse, imageUrl } = req.body
-  const isNewlyCancelled = statutSeance === StatutSeance.ANNULE && cours.statutSeance !== StatutSeance.ANNULE
+  const isNewlyCancelled = statutSeance === StatutSeance.ANNULE
 
   // ── Cancellation: refund sessions + cancel reservations atomically ────────
   let notifyList: { prenom: string; email: string; sessionsRestantes: number }[] = []
