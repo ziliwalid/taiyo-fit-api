@@ -225,6 +225,11 @@ export async function updateStatutSeance(req: Request, res: Response) {
     return
   }
 
+  if (cours.statutSeance === StatutSeance.ANNULE) {
+    res.status(409).json({ success: false, message: 'Ce cours est annulé et ne peut plus être modifié.' })
+    return
+  }
+
   const { adresse, imageUrl } = req.body
   const isNewlyCancelled = statutSeance === StatutSeance.ANNULE && cours.statutSeance !== StatutSeance.ANNULE
 
