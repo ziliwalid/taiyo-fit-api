@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOrCoach } from '../middleware/adminOrCoach'
-import { listCours, getCours, reserver } from '../controllers/coursController'
+import { listCours, getCours, reserver, annulerReservation } from '../controllers/coursController'
 import { updateStatutSeance } from '../controllers/adminController'
 
 const router = Router()
@@ -11,7 +11,8 @@ router.get('/', listCours)
 router.get('/:id', getCours)
 
 // Protected routes
-router.post('/:id/reserver', requireAuth, reserver)
+router.post('/:id/reserver',   requireAuth, reserver)
+router.delete('/:id/reserver', requireAuth, annulerReservation)
 
 /**
  * @openapi

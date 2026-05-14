@@ -3,6 +3,8 @@ import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 
+const CANCELLATION_HOURS = 48
+
 async function marquerSeancesEffectuees() {
   await prisma.cours.updateMany({
     where: {
@@ -115,4 +117,46 @@ export async function reserver(req: AuthRequest, res: Response) {
   } catch {
     res.status(409).json({ success: false, message: 'Vous êtes déjà inscrit à ce cours' })
   }
+}
+
+export async function annulerReservation(req: AuthRequest, res: Response) {
+  const coursId       = parseInt(req.params.id as string)
+  const utilisateurId = req.user!.id
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { utilisateurId_coursId: { utilisateurId, coursId } },
+    include: { cours: true },
+  })
+
+  if (!reservation || reservation.statut === StatutReservation.ANNULE) {
+    res.status(404).json({ success: false, message: 'Réservation introuvable.' })
+    return
+  }
+
+  const heuresAvant = (new Date(reservation.cours.dateHeure).getTime() - Date.now()) / 3_600_000
+  if (heuresAvant < CANCELLATION_HOURS) {
+    res.status(409).json({
+      success: false,
+      message: `L'annulation n'est plus possible : la séance a lieu dans moins de ${CANCELLATION_HOURS}h.`,
+    })
+    return
+  }
+
+  if (reservation.cours.statutSeance === StatutSeance.ANNULE || reservation.cours.statutSeance === StatutSeance.EFFECTUE) {
+    res.status(409).json({ success: false, message: 'Cette séance ne peut plus être annulée.' })
+    return
+  }
+
+  await prisma.$transaction([
+    prisma.reservation.update({
+      where: { utilisateurId_coursId: { utilisateurId, coursId } },
+      data: { statut: StatutReservation.ANNULE },
+    }),
+    prisma.comptePack.updateMany({
+      where: { utilisateurId, sessionsRestantes: { gte: 0 } },
+      data: { sessionsRestantes: { increment: 1 } },
+    }),
+  ])
+
+  res.json({ success: true, message: 'Réservation annulée et session remboursée sur ton pack.', data: null })
 }
