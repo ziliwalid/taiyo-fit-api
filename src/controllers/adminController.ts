@@ -515,3 +515,16 @@ export async function getStats(req: Request, res: Response) {
     },
   })
 }
+
+export async function listNotifications(_req: Request, res: Response) {
+  const notifications = await prisma.notification.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+  })
+  res.json({ success: true, message: 'OK', data: notifications })
+}
+
+export async function marquerNotificationsLues(_req: Request, res: Response) {
+  await prisma.notification.updateMany({ where: { lu: false }, data: { lu: true } })
+  res.json({ success: true, message: 'Notifications marquées comme lues.', data: null })
+}

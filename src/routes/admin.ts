@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 
@@ -239,5 +239,8 @@ router.get('/evenements',       adminListEvenements)
 router.post('/evenements',      createEvenement)
 router.patch('/evenements/:id', updateEvenement)
 router.delete('/evenements/:id',deleteEvenement)
+
+router.get('/notifications',   listNotifications)
+router.patch('/notifications/lire', marquerNotificationsLues)
 
 export default router

@@ -2,7 +2,6 @@ import { Response } from 'express'
 import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
-import { sendAnnulationReservationToAdmin } from '../services/mailer'
 
 const CANCELLATION_HOURS = 48
 
@@ -168,12 +167,10 @@ export async function annulerReservation(req: AuthRequest, res: Response) {
     const dateStr = new Date(reservation.cours.dateHeure).toLocaleDateString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
     })
-    sendAnnulationReservationToAdmin({
-      membrePrenom: utilisateur.prenom,
-      membreNom:    utilisateur.nom,
-      membreEmail:  utilisateur.email,
-      coursTitre:   reservation.cours.titre,
-      coursDate:    dateStr,
+    prisma.notification.create({
+      data: {
+        message: `${utilisateur.prenom} ${utilisateur.nom} a annulé sa réservation pour "${reservation.cours.titre}" du ${dateStr}.`,
+      },
     }).catch(() => {})
   }
 
