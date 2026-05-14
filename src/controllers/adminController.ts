@@ -84,7 +84,11 @@ export async function createCours(req: Request, res: Response) {
     return
   }
   const cours = await prisma.cours.create({
-    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) }
+    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) },
+    include: {
+      coach: { select: { nom: true, prenom: true } },
+      _count: { select: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } } },
+    },
   })
   res.status(201).json({
     success: true,
