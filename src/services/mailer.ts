@@ -86,6 +86,29 @@ export async function sendSeanceAnnuleeToMembre(data: SeanceAnnuleeEmailData) {
   })
 }
 
+export async function sendAnnulationReservationToAdmin(data: {
+  membrePrenom: string
+  membreNom: string
+  membreEmail: string
+  coursTitre: string
+  coursDate: string
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: process.env.MALAK_EMAIL!,
+    subject: `Annulation réservation — ${data.membrePrenom} ${data.membreNom} · ${data.coursTitre}`,
+    html: `
+      <h2>Un adhérent a annulé sa réservation</h2>
+      <p><strong>Adhérent :</strong> ${data.membrePrenom} ${data.membreNom} (${data.membreEmail})</p>
+      <p><strong>Cours :</strong> ${data.coursTitre}</p>
+      <p><strong>Date :</strong> ${data.coursDate}</p>
+      <hr>
+      <p>Sa session a été automatiquement remboursée sur son pack.<br>
+         Une place s'est libérée dans ce cours.</p>
+    `,
+  })
+}
+
 export async function sendValidationConfirmationToMembre(data: DemandePackEmailData) {
   await resend.emails.send({
     from: FROM,

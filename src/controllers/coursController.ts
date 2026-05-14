@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
+import { sendAnnulationReservationToAdmin } from '../services/mailer'
 
 const CANCELLATION_HOURS = 48
 
@@ -147,6 +148,11 @@ export async function annulerReservation(req: AuthRequest, res: Response) {
     return
   }
 
+  const utilisateur = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { prenom: true, nom: true, email: true },
+  })
+
   await prisma.$transaction([
     prisma.reservation.update({
       where: { utilisateurId_coursId: { utilisateurId, coursId } },
@@ -157,6 +163,19 @@ export async function annulerReservation(req: AuthRequest, res: Response) {
       data: { sessionsRestantes: { increment: 1 } },
     }),
   ])
+
+  if (utilisateur) {
+    const dateStr = new Date(reservation.cours.dateHeure).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+    })
+    sendAnnulationReservationToAdmin({
+      membrePrenom: utilisateur.prenom,
+      membreNom:    utilisateur.nom,
+      membreEmail:  utilisateur.email,
+      coursTitre:   reservation.cours.titre,
+      coursDate:    dateStr,
+    }).catch(() => {})
+  }
 
   res.json({ success: true, message: 'Réservation annulée et session remboursée sur ton pack.', data: null })
 }
