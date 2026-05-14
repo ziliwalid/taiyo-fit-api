@@ -83,6 +83,10 @@ export async function createCours(req: Request, res: Response) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : titre, dateHeure, dureeMinutes, placesMax, coachId' })
     return
   }
+  if (new Date(dateHeure) <= new Date()) {
+    res.status(400).json({ success: false, message: 'La date du cours doit être dans le futur.' })
+    return
+  }
   const cours = await prisma.cours.create({
     data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) },
     include: {
