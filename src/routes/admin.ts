@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, updatePack, listPacks, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
+import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 
 const router = Router()
 router.use(requireAuth, adminOnly)
@@ -114,9 +115,11 @@ router.post('/cours', createCours)
  */
 router.get('/stats', getStats)
 router.get('/transactions', listTransactions)
-router.get('/packs', listPacks)
+router.get('/packs', adminListPacks)
 router.post('/packs', createPack)
 router.patch('/packs/:id', updatePack)
+router.patch('/packs/:id/actif', togglePackActif)
+router.delete('/packs/:id', deletePack)
 router.get('/coachs', listCoaches)
 router.get('/membres', listMembres)
 router.get('/coachs/details', listCoachesDetailed)
@@ -231,5 +234,10 @@ router.patch('/packs/demandes/:id/valider', validerDemande)
  *         description: Demande déjà traitée
  */
 router.patch('/packs/demandes/:id/refuser', refuserDemande)
+
+router.get('/evenements',       adminListEvenements)
+router.post('/evenements',      createEvenement)
+router.patch('/evenements/:id', updateEvenement)
+router.delete('/evenements/:id',deleteEvenement)
 
 export default router

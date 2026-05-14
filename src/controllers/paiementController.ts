@@ -1,5 +1,4 @@
 import { Request, Response } from 'express'
-import Stripe from 'stripe'
 import { StatutPaiement } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
@@ -99,7 +98,7 @@ export async function createCheckoutSession(req: AuthRequest, res: Response) {
 export async function stripeWebhook(req: Request, res: Response) {
   const sig = req.headers['stripe-signature'] as string
 
-  let event: Stripe.Event
+  let event: ReturnType<typeof stripe.webhooks.constructEvent>
   try {
     event = stripe.webhooks.constructEvent(
       req.body as Buffer,
@@ -113,14 +112,14 @@ export async function stripeWebhook(req: Request, res: Response) {
 
   // ── Payment succeeded ────────────────────────────────────────────────────
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
+    const session = event.data.object as { id: string; payment_intent: string | null }
 
     const paiement = await prisma.paiement.findUnique({
       where:   { stripeSessionId: session.id },
       include: { pack: true, utilisateur: true },
     })
 
-    // Idempotency: already processed
+    // Idempotency: skip if already successfully processed
     if (!paiement || paiement.statut === StatutPaiement.REUSSI) {
       res.json({ received: true })
       return
@@ -156,7 +155,7 @@ export async function stripeWebhook(req: Request, res: Response) {
 
   // ── Session expired before payment ──────────────────────────────────────
   if (event.type === 'checkout.session.expired') {
-    const session = event.data.object as Stripe.Checkout.Session
+    const session = event.data.object as { id: string; payment_intent: string | null }
     await prisma.paiement.updateMany({
       where: { stripeSessionId: session.id, statut: StatutPaiement.EN_ATTENTE },
       data:  { statut: StatutPaiement.ECHOUE },

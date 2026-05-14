@@ -8,6 +8,7 @@ import packRoutes from './routes/pack'
 import adminRoutes from './routes/admin'
 import coachRoutes from './routes/coach'
 import paiementRoutes from './routes/paiement'
+import evenementsRoutes from './routes/evenements'
 import { stripeWebhook } from './controllers/paiementController'
 import { listPacks } from './controllers/packController'
 
@@ -29,13 +30,14 @@ app.use(express.json())
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
-app.use('/auth',       authRoutes)
-app.use('/cours',      coursRoutes)
-app.use('/mon-compte', packRoutes)
-app.use('/admin',      adminRoutes)
-app.use('/coach',      coachRoutes)
-app.use('/paiement',   paiementRoutes)
-app.get('/packs',      listPacks)
+app.use('/auth',        authRoutes)
+app.use('/cours',       coursRoutes)
+app.use('/mon-compte',  packRoutes)
+app.use('/admin',       adminRoutes)
+app.use('/coach',       coachRoutes)
+app.use('/paiement',    paiementRoutes)
+app.use('/evenements',  evenementsRoutes)
+app.get('/packs',       listPacks)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

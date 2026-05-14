@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { Role, StatutReservation, StatutSeance, StatutPaiement, StatutDemande } from '@prisma/client'
 import prisma from '../lib/prisma'
+import { sendSeanceAnnuleeToMembre } from '../services/mailer'
 
 export async function createCoach(req: Request, res: Response) {
   const { nom, prenom, email, password, telephone } = req.body
@@ -135,9 +136,63 @@ export async function updatePack(req: Request, res: Response) {
   res.json({ success: true, message: 'Pack mis à jour.', data: updated })
 }
 
+export async function deletePack(req: Request, res: Response) {
+  const id = parseInt(req.params.id as string)
+  const pack = await prisma.pack.findUnique({ where: { id } })
+  if (!pack) {
+    res.status(404).json({ success: false, message: 'Pack introuvable' })
+    return
+  }
+
+  const nbPaiements = await prisma.paiement.count({ where: { packId: id } })
+  if (nbPaiements > 0) {
+    res.status(409).json({
+      success: false,
+      message: `Impossible de supprimer "${pack.nom}" — ${nbPaiements} paiement(s) Stripe sont liés à ce pack (y compris les sessions en attente).`,
+    })
+    return
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.demandePack.deleteMany({ where: { packId: id } }),
+      prisma.comptePack.updateMany({ where: { packId: id }, data: { packId: null } }),
+      prisma.pack.delete({ where: { id } }),
+    ])
+  } catch {
+    res.status(409).json({
+      success: false,
+      message: `Impossible de supprimer "${pack.nom}" — des données liées existent encore en base.`,
+    })
+    return
+  }
+
+  res.json({ success: true, message: `Pack "${pack.nom}" supprimé.`, data: null })
+}
+
 export async function listPacks(req: Request, res: Response) {
+  const packs = await prisma.pack.findMany({ where: { actif: true }, orderBy: { id: 'asc' } })
+  res.json({ success: true, message: `${packs.length} pack(s)`, data: packs })
+}
+
+export async function adminListPacks(req: Request, res: Response) {
   const packs = await prisma.pack.findMany({ orderBy: { id: 'asc' } })
   res.json({ success: true, message: `${packs.length} pack(s)`, data: packs })
+}
+
+export async function togglePackActif(req: Request, res: Response) {
+  const id = parseInt(req.params.id as string)
+  const pack = await prisma.pack.findUnique({ where: { id } })
+  if (!pack) {
+    res.status(404).json({ success: false, message: 'Pack introuvable' })
+    return
+  }
+  const updated = await prisma.pack.update({ where: { id }, data: { actif: !pack.actif } })
+  res.json({
+    success: true,
+    message: `Pack "${pack.nom}" ${updated.actif ? 'réactivé' : 'désactivé'}.`,
+    data: updated,
+  })
 }
 
 export async function listCoaches(req: Request, res: Response) {
@@ -167,6 +222,52 @@ export async function updateStatutSeance(req: Request, res: Response) {
   }
 
   const { adresse, imageUrl } = req.body
+  const isNewlyCancelled = statutSeance === StatutSeance.ANNULE && cours.statutSeance !== StatutSeance.ANNULE
+
+  // ── Cancellation: refund sessions + cancel reservations atomically ────────
+  let notifyList: { prenom: string; email: string; sessionsRestantes: number }[] = []
+
+  if (isNewlyCancelled) {
+    const reservations = await prisma.reservation.findMany({
+      where: { coursId: id, statut: { not: StatutReservation.ANNULE } },
+      include: { utilisateur: { select: { prenom: true, email: true } } },
+    })
+
+    if (reservations.length > 0) {
+      const utilisateurIds = reservations.map(r => r.utilisateurId)
+
+      await prisma.$transaction([
+        // Cancel all active reservations
+        prisma.reservation.updateMany({
+          where: { coursId: id, statut: { not: StatutReservation.ANNULE } },
+          data: { statut: StatutReservation.ANNULE },
+        }),
+        // Refund 1 session to each member who had an active reservation
+        ...utilisateurIds.map(uid =>
+          prisma.comptePack.updateMany({
+            where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
+            data: { sessionsRestantes: { increment: 1 } },
+          })
+        ),
+      ])
+
+      // Fetch updated session counts for email notifications
+      const comptes = await prisma.comptePack.findMany({
+        where: { utilisateurId: { in: utilisateurIds } },
+        select: { utilisateurId: true, sessionsRestantes: true },
+      })
+      const comptesMap = new Map(comptes.map(c => [c.utilisateurId, c.sessionsRestantes]))
+
+      notifyList = reservations
+        .filter(r => comptesMap.has(r.utilisateurId))
+        .map(r => ({
+          prenom:            r.utilisateur.prenom,
+          email:             r.utilisateur.email,
+          sessionsRestantes: comptesMap.get(r.utilisateurId)!,
+        }))
+    }
+  }
+
   const updated = await prisma.cours.update({
     where: { id },
     data: {
@@ -177,12 +278,29 @@ export async function updateStatutSeance(req: Request, res: Response) {
     }
   })
 
+  // Fire-and-forget emails
+  if (isNewlyCancelled && notifyList.length > 0) {
+    const dateStr = new Date(cours.dateHeure).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+    })
+    notifyList.forEach(({ prenom, email, sessionsRestantes }) => {
+      sendSeanceAnnuleeToMembre({
+        membrePrenom: prenom,
+        membreEmail:  email,
+        coursTitre:   cours.titre,
+        coursDate:    dateStr,
+        sessionsRendues: 1,
+        sessionsRestantes,
+      }).catch(() => {})
+    })
+  }
+
   const labels: Record<StatutSeance, string> = {
-    [StatutSeance.PLANIFIE]: 'Séance planifiée normalement.',
-    [StatutSeance.EN_RETARD]: 'Séance signalée en retard.',
+    [StatutSeance.PLANIFIE]:     'Séance planifiée normalement.',
+    [StatutSeance.EN_RETARD]:    'Séance signalée en retard.',
     [StatutSeance.LIEU_MODIFIE]: 'Changement de lieu signalé.',
-    [StatutSeance.ANNULE]: 'Séance annulée.',
-    [StatutSeance.EFFECTUE]: 'Séance marquée comme effectuée.'
+    [StatutSeance.ANNULE]:       `Séance annulée — ${notifyList.length} adhérent(s) remboursé(s) et notifié(s).`,
+    [StatutSeance.EFFECTUE]:     'Séance marquée comme effectuée.',
   }
 
   res.json({
@@ -303,6 +421,21 @@ export async function listTransactions(req: Request, res: Response) {
 }
 
 export async function getStats(req: Request, res: Response) {
+  const { from, to } = req.query
+
+  const revenueWhere: { statut: StatutPaiement; createdAt?: { gte?: Date; lte?: Date } } = {
+    statut: StatutPaiement.REUSSI,
+  }
+  if (from || to) {
+    revenueWhere.createdAt = {}
+    if (from) revenueWhere.createdAt.gte = new Date(from as string)
+    if (to) {
+      const toDate = new Date(to as string)
+      toDate.setHours(23, 59, 59, 999)
+      revenueWhere.createdAt.lte = toDate
+    }
+  }
+
   const [
     paiementsReussis,
     totalAdherents,
@@ -313,7 +446,7 @@ export async function getStats(req: Request, res: Response) {
     seancesEffectuees,
   ] = await Promise.all([
     prisma.paiement.findMany({
-      where: { statut: StatutPaiement.REUSSI },
+      where: revenueWhere,
       select: { montant: true },
     }),
     prisma.utilisateur.count({ where: { role: Role.ADHERENT } }),

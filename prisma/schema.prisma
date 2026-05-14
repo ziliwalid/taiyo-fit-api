@@ -89,6 +89,7 @@ model Pack {
   ancienTarif Float?
   description String?
   tag         String?
+  actif       Boolean       @default(true)
   comptes     ComptePack[]
   demandes    DemandePack[]
   paiements   Paiement[]
@@ -134,8 +135,21 @@ model ComptePack {
   id                Int         @id @default(autoincrement())
   utilisateur       Utilisateur @relation(fields: [utilisateurId], references: [id])
   utilisateurId     Int         @unique
-  pack              Pack        @relation(fields: [packId], references: [id])
-  packId            Int
+  pack              Pack?       @relation(fields: [packId], references: [id])
+  packId            Int?
   sessionsRestantes Int
   createdAt         DateTime    @default(now())
+}
+
+model Evenement {
+  id            Int       @id @default(autoincrement())
+  titre         String
+  contenu       String
+  imageUrl      String?
+  dateEvenement DateTime?
+  tag           String?
+  estPublic     Boolean   @default(true)
+  epingle       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

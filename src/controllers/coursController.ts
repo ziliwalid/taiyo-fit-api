@@ -16,13 +16,21 @@ async function marquerSeancesEffectuees() {
 export async function listCours(req: AuthRequest, res: Response) {
   await marquerSeancesEffectuees()
   const cours = await prisma.cours.findMany({
-    include: { coach: { select: { nom: true, prenom: true } } },
+    include: {
+      coach: { select: { nom: true, prenom: true } },
+      _count: { select: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } } },
+    },
     orderBy: { dateHeure: 'asc' }
   })
+  const data = cours.map(({ _count, ...c }) => ({
+    ...c,
+    nbParticipants: _count.reservations,
+    placesRestantes: c.placesMax - _count.reservations,
+  }))
   res.json({
     success: true,
-    message: `${cours.length} cours disponible(s)`,
-    data: cours
+    message: `${data.length} cours disponible(s)`,
+    data,
   })
 }
 
