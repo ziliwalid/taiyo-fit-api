@@ -240,7 +240,18 @@ router.post('/evenements',      createEvenement)
 router.patch('/evenements/:id', updateEvenement)
 router.delete('/evenements/:id',deleteEvenement)
 
-router.get('/notifications',   listNotifications)
+router.get('/notifications',        listNotifications)
 router.patch('/notifications/lire', marquerNotificationsLues)
+router.get('/membres/:id/historique', async (req, res) => {
+  const { default: prisma } = await import('../lib/prisma')
+  const id = parseInt(req.params.id as string)
+  const historique = await prisma.historiqueSession.findMany({
+    where: { utilisateurId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { id: true, variation: true, motif: true, createdAt: true },
+  })
+  res.json({ success: true, message: 'OK', data: historique })
+})
 
 export default router

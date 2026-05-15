@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
+import { logSession } from '../lib/logSession'
 
 const CANCELLATION_HOURS = 48
 
@@ -109,6 +110,7 @@ export async function reserver(req: AuthRequest, res: Response) {
         data: { sessionsRestantes: { decrement: 1 } }
       })
     ])
+    logSession(utilisateurId, -1, `Réservation · ${cours.titre}`, coursId)
     res.status(201).json({
       success: true,
       message: `Réservation pour "${cours.titre}" confirmée ! Il te reste ${comptePack.sessionsRestantes - 1} session(s) dans ton pack.`,
@@ -162,6 +164,8 @@ export async function annulerReservation(req: AuthRequest, res: Response) {
       data: { sessionsRestantes: { increment: 1 } },
     }),
   ])
+
+  logSession(utilisateurId, +1, `Annulation (adhérent) · ${reservation.cours.titre}`, coursId)
 
   if (utilisateur) {
     const dateStr = new Date(reservation.cours.dateHeure).toLocaleDateString('fr-FR', {

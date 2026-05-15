@@ -86,3 +86,14 @@ export async function getMonDashboard(req: AuthRequest, res: Response) {
     },
   })
 }
+
+export async function getHistoriqueSessions(req: AuthRequest, res: Response) {
+  const userId = req.user!.id
+  const historique = await prisma.historiqueSession.findMany({
+    where: { utilisateurId: userId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { id: true, variation: true, motif: true, createdAt: true },
+  })
+  res.json({ success: true, message: 'OK', data: historique })
+}

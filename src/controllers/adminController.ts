@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { Role, StatutReservation, StatutSeance, StatutPaiement, StatutDemande } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { sendSeanceAnnuleeToMembre } from '../services/mailer'
+import { logSession } from '../lib/logSession'
 
 export async function createCoach(req: Request, res: Response) {
   const { nom, prenom, email, password, telephone } = req.body
@@ -282,6 +283,10 @@ export async function updateStatutSeance(req: Request, res: Response) {
           email:             r.utilisateur.email,
           sessionsRestantes: comptesMap.get(r.utilisateurId)!,
         }))
+
+      utilisateurIds.forEach(uid =>
+        logSession(uid, +1, `Cours annulé · ${cours.titre}`, id)
+      )
     }
   }
 
@@ -393,6 +398,7 @@ export async function assignPack(req: Request, res: Response) {
     update: { packId, sessionsRestantes: pack.nbSessions },
     create: { utilisateurId, packId, sessionsRestantes: pack.nbSessions }
   })
+  logSession(utilisateurId, pack.nbSessions, `Attribution pack (admin) · ${pack.nom}`)
   res.status(201).json({
     success: true,
     message: `Pack "${pack.nom}" assigné à ${user.prenom} ${user.nom} — ${pack.nbSessions} sessions disponibles.`,

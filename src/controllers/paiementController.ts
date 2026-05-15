@@ -3,6 +3,7 @@ import { StatutPaiement } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 import stripe from '../lib/stripe'
+import { logSession } from '../lib/logSession'
 import { sendValidationConfirmationToMembre } from '../services/mailer'
 
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000'
@@ -140,6 +141,8 @@ export async function stripeWebhook(req: Request, res: Response) {
         create: { utilisateurId: paiement.utilisateurId, packId: paiement.packId, sessionsRestantes: paiement.pack.nbSessions },
       }),
     ])
+
+    logSession(paiement.utilisateurId, paiement.pack.nbSessions, `Achat pack (Stripe) · ${paiement.pack.nom}`)
 
     // Fire-and-forget confirmation email — webhook must not fail on email error
     sendValidationConfirmationToMembre({

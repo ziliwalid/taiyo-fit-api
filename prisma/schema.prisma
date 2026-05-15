@@ -20,8 +20,9 @@ model Utilisateur {
   comptePack   ComptePack?
   demandesPack DemandePack[]
   paiements    Paiement[]
-  coach        Coach?
-  createdAt    DateTime       @default(now())
+  coach              Coach?
+  historiquesSessions HistoriqueSession[]
+  createdAt          DateTime       @default(now())
 }
 
 enum Role {
@@ -47,8 +48,9 @@ model Cours {
   placesMax    Int
   coach        Coach         @relation(fields: [coachId], references: [id])
   coachId      Int
-  reservations Reservation[]
-  statutSeance StatutSeance  @default(PLANIFIE)
+  reservations        Reservation[]
+  historiquesSessions HistoriqueSession[]
+  statutSeance        StatutSeance  @default(PLANIFIE)
   messageCoach String?
   adresse      String?
   imageUrl     String?
@@ -139,6 +141,17 @@ model ComptePack {
   packId            Int?
   sessionsRestantes Int
   createdAt         DateTime    @default(now())
+}
+
+model HistoriqueSession {
+  id            Int          @id @default(autoincrement())
+  utilisateurId Int
+  utilisateur   Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  variation     Int
+  motif         String
+  coursId       Int?
+  cours         Cours?       @relation(fields: [coursId], references: [id])
+  createdAt     DateTime     @default(now())
 }
 
 model Notification {
