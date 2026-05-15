@@ -14,8 +14,9 @@ model Utilisateur {
   role         Role           @default(ADHERENT)
   nom          String
   prenom       String
-  telephone    String?
-  actif        Boolean        @default(true)
+  telephone               String?
+  actif                   Boolean        @default(true)
+  derniereMiseAJourProfil DateTime?
   reservations Reservation[]
   comptePack   ComptePack?
   demandesPack DemandePack[]

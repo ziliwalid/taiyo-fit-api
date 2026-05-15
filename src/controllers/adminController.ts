@@ -5,10 +5,16 @@ import prisma from '../lib/prisma'
 import { sendSeanceAnnuleeToMembre } from '../services/mailer'
 import { logSession } from '../lib/logSession'
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export async function createCoach(req: Request, res: Response) {
   const { nom, prenom, email, password, telephone } = req.body
   if (!nom || !prenom || !email || !password) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : nom, prenom, email, password' })
+    return
+  }
+  if (!EMAIL_RE.test(email)) {
+    res.status(400).json({ success: false, message: 'Adresse email invalide.' })
     return
   }
 
@@ -88,6 +94,14 @@ export async function createCours(req: Request, res: Response) {
     res.status(400).json({ success: false, message: 'La date du cours doit être dans le futur.' })
     return
   }
+  if (!Number.isInteger(dureeMinutes) || dureeMinutes <= 0) {
+    res.status(400).json({ success: false, message: 'dureeMinutes doit être un entier positif.' })
+    return
+  }
+  if (!Number.isInteger(placesMax) || placesMax <= 0) {
+    res.status(400).json({ success: false, message: 'placesMax doit être un entier positif.' })
+    return
+  }
   const cours = await prisma.cours.create({
     data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) },
     include: {
@@ -108,11 +122,25 @@ export async function createPack(req: Request, res: Response) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : nom, nbSessions' })
     return
   }
+  if (!Number.isInteger(nbSessions) || nbSessions <= 0) {
+    res.status(400).json({ success: false, message: 'nbSessions doit être un entier positif.' })
+    return
+  }
+  const parsedTarif = tarif != null ? parseFloat(tarif) : undefined
+  const parsedAncienTarif = ancienTarif != null ? parseFloat(ancienTarif) : undefined
+  if (parsedTarif !== undefined && (isNaN(parsedTarif) || parsedTarif < 0)) {
+    res.status(400).json({ success: false, message: 'tarif invalide.' })
+    return
+  }
+  if (parsedAncienTarif !== undefined && (isNaN(parsedAncienTarif) || parsedAncienTarif < 0)) {
+    res.status(400).json({ success: false, message: 'ancienTarif invalide.' })
+    return
+  }
   const pack = await prisma.pack.create({
     data: {
       nom, nbSessions, description,
-      ...(tarif != null && { tarif: parseFloat(tarif) }),
-      ...(ancienTarif != null && { ancienTarif: parseFloat(ancienTarif) }),
+      ...(parsedTarif !== undefined && { tarif: parsedTarif }),
+      ...(parsedAncienTarif !== undefined && { ancienTarif: parsedAncienTarif }),
       ...(tag ? { tag } : {})
     }
   })
@@ -131,14 +159,29 @@ export async function updatePack(req: Request, res: Response) {
     res.status(404).json({ success: false, message: 'Pack introuvable' })
     return
   }
+  const parsedNbSessions = nbSessions != null ? parseInt(nbSessions) : undefined
+  if (parsedNbSessions !== undefined && (!Number.isInteger(parsedNbSessions) || parsedNbSessions <= 0)) {
+    res.status(400).json({ success: false, message: 'nbSessions doit être un entier positif.' })
+    return
+  }
+  const parsedTarif = tarif !== undefined && tarif !== '' && tarif != null ? parseFloat(tarif) : undefined
+  const parsedAncienTarif = ancienTarif !== undefined && ancienTarif !== '' && ancienTarif != null ? parseFloat(ancienTarif) : undefined
+  if (parsedTarif !== undefined && (isNaN(parsedTarif) || parsedTarif < 0)) {
+    res.status(400).json({ success: false, message: 'tarif invalide.' })
+    return
+  }
+  if (parsedAncienTarif !== undefined && (isNaN(parsedAncienTarif) || parsedAncienTarif < 0)) {
+    res.status(400).json({ success: false, message: 'ancienTarif invalide.' })
+    return
+  }
   const updated = await prisma.pack.update({
     where: { id },
     data: {
       ...(tag !== undefined && { tag: tag || null }),
       ...(nom && { nom }),
-      ...(nbSessions != null && { nbSessions: parseInt(nbSessions) }),
-      ...(tarif !== undefined && { tarif: tarif !== '' && tarif != null ? parseFloat(tarif) : null }),
-      ...(ancienTarif !== undefined && { ancienTarif: ancienTarif !== '' && ancienTarif != null ? parseFloat(ancienTarif) : null }),
+      ...(parsedNbSessions !== undefined && { nbSessions: parsedNbSessions }),
+      ...(tarif !== undefined && { tarif: tarif !== '' && tarif != null ? parsedTarif ?? null : null }),
+      ...(ancienTarif !== undefined && { ancienTarif: ancienTarif !== '' && ancienTarif != null ? parsedAncienTarif ?? null : null }),
       ...(description !== undefined && { description: description || null }),
     }
   })
