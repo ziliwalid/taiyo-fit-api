@@ -6,11 +6,57 @@ import { updateStatutSeance } from '../controllers/adminController'
 
 const router = Router()
 
-// Public routes — no auth required
+/**
+ * @openapi
+ * /cours:
+ *   get:
+ *     tags: [Cours]
+ *     summary: Liste tous les cours à venir (public)
+ *     responses:
+ *       200:
+ *         description: Liste des cours avec coach, places restantes et statut
+ */
 router.get('/', listCours)
+
+/**
+ * @openapi
+ * /cours/{id}:
+ *   get:
+ *     tags: [Cours]
+ *     summary: Détail d'un cours avec liste des participants (public)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Cours avec participants
+ *       404:
+ *         description: Cours introuvable
+ */
 router.get('/:id', getCours)
 
-// Protected routes
+/**
+ * @openapi
+ * /cours/{id}/reserver:
+ *   delete:
+ *     tags: [Cours]
+ *     summary: Annuler sa réservation (remboursement session si > 48h avant le cours)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Réservation annulée, session remboursée si délai respecté
+ *       400:
+ *         description: Délai de 48h dépassé
+ *       404:
+ *         description: Réservation introuvable
+ */
 router.post('/:id/reserver',   requireAuth, reserver)
 router.delete('/:id/reserver', requireAuth, annulerReservation)
 

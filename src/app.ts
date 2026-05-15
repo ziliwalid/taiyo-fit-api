@@ -28,7 +28,17 @@ app.post(
 // All other routes receive JSON-parsed bodies
 app.use(express.json())
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+app.use('/api-docs', (req, res, next) => {
+  const auth = req.headers.authorization
+  if (auth?.startsWith('Basic ')) {
+    const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':')
+    if (user === process.env.SWAGGER_USER && pass === process.env.SWAGGER_PASS) {
+      return next()
+    }
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Taiyo Fit API Docs"')
+  res.status(401).send('Accès refusé.')
+}, swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 app.use('/auth',        authRoutes)
 app.use('/cours',       coursRoutes)

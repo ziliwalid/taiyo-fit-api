@@ -59,6 +59,36 @@ router.get('/cours/:id/participants', getParticipants)
  *         description: Statut invalide
  */
 router.patch('/reservations/:id', updateReservation)
+
+/**
+ * @openapi
+ * /admin/cours/{id}/statut:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Modifier le statut d'une séance (PLANIFIE, EN_RETARD, LIEU_MODIFIE, ANNULE, EFFECTUE)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               statutSeance:  { type: string, enum: [PLANIFIE, EN_RETARD, LIEU_MODIFIE, ANNULE, EFFECTUE] }
+ *               messageCoach:  { type: string, nullable: true }
+ *               adresse:       { type: string, nullable: true }
+ *               imageUrl:      { type: string, nullable: true }
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour. Si ANNULE, toutes les réservations sont annulées et les sessions remboursées.
+ *       409:
+ *         description: Cours déjà annulé ou effectué — modification impossible
+ */
 router.patch('/cours/:id/statut', updateStatutSeance)
 
 /**
@@ -113,16 +143,192 @@ router.post('/cours', createCours)
  *       400:
  *         description: Champs requis manquants
  */
+/**
+ * @openapi
+ * /admin/stats:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Statistiques globales (revenus, adhérents, séances, demandes en attente)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *         description: Date de début (ISO)
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *         description: Date de fin (ISO)
+ *     responses:
+ *       200:
+ *         description: Stats revenus, adhérents, séances et demandes
+ */
 router.get('/stats', getStats)
+
+/**
+ * @openapi
+ * /admin/transactions:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste des paiements Stripe avec filtres optionnels
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: statut
+ *         schema: { type: string, enum: [EN_ATTENTE, REUSSI, ECHOUE, REMBOURSE] }
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Liste des transactions avec utilisateur et pack associés
+ */
 router.get('/transactions', listTransactions)
+
+/**
+ * @openapi
+ * /admin/packs:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les packs (actifs et inactifs)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste complète des packs
+ */
 router.get('/packs', adminListPacks)
 router.post('/packs', createPack)
+
+/**
+ * @openapi
+ * /admin/packs/{id}:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Modifier un pack (nom, sessions, tarif, description, tag)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nom:         { type: string }
+ *               nbSessions:  { type: integer }
+ *               tarif:       { type: number, nullable: true }
+ *               ancienTarif: { type: number, nullable: true }
+ *               description: { type: string, nullable: true }
+ *               tag:         { type: string, nullable: true }
+ *     responses:
+ *       200:
+ *         description: Pack mis à jour
+ *       404:
+ *         description: Pack introuvable
+ */
 router.patch('/packs/:id', updatePack)
+
+/**
+ * @openapi
+ * /admin/packs/{id}/actif:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Activer ou désactiver un pack (toggle)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Statut actif basculé
+ */
 router.patch('/packs/:id/actif', togglePackActif)
+
+/**
+ * @openapi
+ * /admin/packs/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Supprimer un pack (bloqué si des paiements Stripe y sont liés)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Pack supprimé
+ *       409:
+ *         description: Pack lié à des paiements Stripe — suppression impossible
+ */
 router.delete('/packs/:id', deletePack)
+
+/**
+ * @openapi
+ * /admin/coachs:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste simplifiée des coachs (id, nom, prénom)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste des coachs
+ */
 router.get('/coachs', listCoaches)
+
+/**
+ * @openapi
+ * /admin/membres:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les adhérents avec leur pack et statut
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste des membres avec comptePack et statut actif
+ */
 router.get('/membres', listMembres)
+
+/**
+ * @openapi
+ * /admin/coachs/details:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste détaillée des coachs avec nombre de cours assignés
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste des coachs avec email, téléphone et cours
+ */
 router.get('/coachs/details', listCoachesDetailed)
+
+/**
+ * @openapi
+ * /admin/utilisateurs/{id}/actif:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Bloquer ou débloquer un utilisateur (toggle actif)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Statut actif basculé
+ *       404:
+ *         description: Utilisateur introuvable
+ */
 router.patch('/utilisateurs/:id/actif', toggleActif)
 
 /**
@@ -235,13 +441,117 @@ router.patch('/packs/demandes/:id/valider', validerDemande)
  */
 router.patch('/packs/demandes/:id/refuser', refuserDemande)
 
+/**
+ * @openapi
+ * /admin/evenements:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les événements (publics et privés)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste complète des événements
+ *   post:
+ *     tags: [Admin]
+ *     summary: Créer un événement
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [titre, contenu]
+ *             properties:
+ *               titre:         { type: string }
+ *               contenu:       { type: string }
+ *               imageUrl:      { type: string, nullable: true }
+ *               dateEvenement: { type: string, format: date-time, nullable: true }
+ *               tag:           { type: string, nullable: true }
+ *               estPublic:     { type: boolean }
+ *               epingle:       { type: boolean }
+ *     responses:
+ *       201:
+ *         description: Événement créé
+ */
 router.get('/evenements',       adminListEvenements)
 router.post('/evenements',      createEvenement)
+
+/**
+ * @openapi
+ * /admin/evenements/{id}:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Modifier un événement
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Événement mis à jour
+ *       404:
+ *         description: Événement introuvable
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Supprimer un événement
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Événement supprimé
+ */
 router.patch('/evenements/:id', updateEvenement)
 router.delete('/evenements/:id',deleteEvenement)
 
+/**
+ * @openapi
+ * /admin/notifications:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste les notifications in-app (non lues en premier)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste des notifications avec statut lu/non lu
+ */
 router.get('/notifications',        listNotifications)
+
+/**
+ * @openapi
+ * /admin/notifications/lire:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Marquer toutes les notifications comme lues
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Toutes les notifications marquées comme lues
+ */
 router.patch('/notifications/lire', marquerNotificationsLues)
+
+/**
+ * @openapi
+ * /admin/membres/{id}/historique:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Historique des mouvements de sessions d'un membre (50 derniers)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Liste des mouvements avec variation, motif et date
+ */
 router.get('/membres/:id/historique', async (req, res) => {
   const { default: prisma } = await import('../lib/prisma')
   const id = parseInt(req.params.id as string)
