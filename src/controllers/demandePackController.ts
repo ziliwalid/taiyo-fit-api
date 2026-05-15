@@ -3,6 +3,7 @@ import { StatutDemande } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 import { sendDemandePackToAdmin, sendDemandeConfirmationToMembre, sendValidationConfirmationToMembre } from '../services/mailer'
+import { logSession } from '../lib/logSession'
 
 export async function demanderPack(req: AuthRequest, res: Response) {
   const { packId } = req.body
@@ -95,6 +96,7 @@ export async function validerDemande(req: AuthRequest, res: Response) {
       create: { utilisateurId: demande.utilisateurId, packId: demande.packId, sessionsRestantes: demande.pack.nbSessions }
     })
   ])
+  logSession(demande.utilisateurId, demande.pack.nbSessions, `Demande validée · ${demande.pack.nom}`)
 
   await sendValidationConfirmationToMembre({
     membrePrenom: demande.utilisateur.prenom,

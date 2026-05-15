@@ -47,6 +47,68 @@ export async function sendDemandeConfirmationToMembre(data: DemandePackEmailData
   })
 }
 
+export async function sendPaiementExpireToMembre(data: { membrePrenom: string; membreEmail: string; packNom: string }) {
+  await resend.emails.send({
+    from: FROM,
+    to: data.membreEmail,
+    subject: `Paiement expiré — ${data.packNom}`,
+    html: `
+      <h2>Bonjour ${data.membrePrenom},</h2>
+      <p>Ta session de paiement pour le pack <strong>${data.packNom}</strong> a expiré (délai de 10 minutes dépassé).</p>
+      <p>Aucun montant n'a été débité. Tu peux relancer une commande à tout moment depuis l'application.</p>
+      <p><em>L'équipe Taiyo Fit</em></p>
+    `
+  })
+}
+
+interface SeanceAnnuleeEmailData {
+  membrePrenom: string
+  membreEmail: string
+  coursTitre: string
+  coursDate: string
+  sessionsRendues: number
+  sessionsRestantes: number
+}
+
+export async function sendSeanceAnnuleeToMembre(data: SeanceAnnuleeEmailData) {
+  await resend.emails.send({
+    from: FROM,
+    to: data.membreEmail,
+    subject: `Séance annulée — ${data.coursTitre}`,
+    html: `
+      <h2>Bonjour ${data.membrePrenom},</h2>
+      <p>La séance <strong>${data.coursTitre}</strong> prévue le <strong>${data.coursDate}</strong> a été annulée.</p>
+      <p>Ta session a été <strong>remboursée automatiquement</strong> sur ton pack.<br>
+         Il te reste désormais <strong>${data.sessionsRestantes} session${data.sessionsRestantes > 1 ? 's' : ''}</strong> disponible${data.sessionsRestantes > 1 ? 's' : ''}.</p>
+      <p>Toutes nos excuses pour la gêne occasionnée. N'hésite pas à réserver une autre séance dès que possible.</p>
+      <p><em>L'équipe Taiyo Fit</em></p>
+    `
+  })
+}
+
+export async function sendAnnulationReservationToAdmin(data: {
+  membrePrenom: string
+  membreNom: string
+  membreEmail: string
+  coursTitre: string
+  coursDate: string
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: process.env.MALAK_EMAIL!,
+    subject: `Annulation réservation — ${data.membrePrenom} ${data.membreNom} · ${data.coursTitre}`,
+    html: `
+      <h2>Un adhérent a annulé sa réservation</h2>
+      <p><strong>Adhérent :</strong> ${data.membrePrenom} ${data.membreNom} (${data.membreEmail})</p>
+      <p><strong>Cours :</strong> ${data.coursTitre}</p>
+      <p><strong>Date :</strong> ${data.coursDate}</p>
+      <hr>
+      <p>Sa session a été automatiquement remboursée sur son pack.<br>
+         Une place s'est libérée dans ce cours.</p>
+    `,
+  })
+}
+
 export async function sendValidationConfirmationToMembre(data: DemandePackEmailData) {
   await resend.emails.send({
     from: FROM,

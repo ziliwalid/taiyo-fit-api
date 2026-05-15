@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
-import { getParticipants, updateReservation, createCours, createPack, updatePack, listPacks, assignPack, createCoach, listCoaches, updateStatutSeance } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
+import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 
 const router = Router()
 router.use(requireAuth, adminOnly)
@@ -112,10 +113,17 @@ router.post('/cours', createCours)
  *       400:
  *         description: Champs requis manquants
  */
-router.get('/packs', listPacks)
+router.get('/stats', getStats)
+router.get('/transactions', listTransactions)
+router.get('/packs', adminListPacks)
 router.post('/packs', createPack)
 router.patch('/packs/:id', updatePack)
+router.patch('/packs/:id/actif', togglePackActif)
+router.delete('/packs/:id', deletePack)
 router.get('/coachs', listCoaches)
+router.get('/membres', listMembres)
+router.get('/coachs/details', listCoachesDetailed)
+router.patch('/utilisateurs/:id/actif', toggleActif)
 
 /**
  * @openapi
@@ -226,5 +234,24 @@ router.patch('/packs/demandes/:id/valider', validerDemande)
  *         description: Demande déjà traitée
  */
 router.patch('/packs/demandes/:id/refuser', refuserDemande)
+
+router.get('/evenements',       adminListEvenements)
+router.post('/evenements',      createEvenement)
+router.patch('/evenements/:id', updateEvenement)
+router.delete('/evenements/:id',deleteEvenement)
+
+router.get('/notifications',        listNotifications)
+router.patch('/notifications/lire', marquerNotificationsLues)
+router.get('/membres/:id/historique', async (req, res) => {
+  const { default: prisma } = await import('../lib/prisma')
+  const id = parseInt(req.params.id as string)
+  const historique = await prisma.historiqueSession.findMany({
+    where: { utilisateurId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { id: true, variation: true, motif: true, createdAt: true },
+  })
+  res.json({ success: true, message: 'OK', data: historique })
+})
 
 export default router
