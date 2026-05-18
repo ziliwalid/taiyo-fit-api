@@ -28,7 +28,7 @@ app.post(
 // All other routes receive JSON-parsed bodies
 app.use(express.json())
 
-app.use('/api-docs', (req, res, next) => {
+app.use('/api-docs', (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const auth = req.headers.authorization
   if (auth?.startsWith('Basic ')) {
     const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':')
