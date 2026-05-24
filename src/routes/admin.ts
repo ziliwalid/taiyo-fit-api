@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
+import { parseId } from '../lib/validate'
 import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
@@ -553,8 +554,9 @@ router.patch('/notifications/lire', marquerNotificationsLues)
  *         description: Liste des mouvements avec variation, motif et date
  */
 router.get('/membres/:id/historique', async (req, res) => {
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const { default: prisma } = await import('../lib/prisma')
-  const id = parseInt(req.params.id as string)
   const historique = await prisma.historiqueSession.findMany({
     where: { utilisateurId: id },
     orderBy: { createdAt: 'desc' },

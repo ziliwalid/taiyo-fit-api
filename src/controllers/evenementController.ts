@@ -2,6 +2,7 @@ import { Response } from 'express'
 import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth'
+import { parseId } from '../lib/validate'
 
 export async function listEvenements(req: AuthRequest, res: Response) {
   // Optional auth: authenticated users see private posts too
@@ -55,7 +56,8 @@ export async function createEvenement(req: AuthRequest, res: Response) {
 }
 
 export async function updateEvenement(req: AuthRequest, res: Response) {
-  const id = parseInt(req.params.id as string, 10)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const { titre, contenu, imageUrl, dateEvenement, tag, estPublic, epingle } = req.body
 
   const evenement = await prisma.evenement.update({
@@ -75,7 +77,8 @@ export async function updateEvenement(req: AuthRequest, res: Response) {
 }
 
 export async function deleteEvenement(req: AuthRequest, res: Response) {
-  const id = parseInt(req.params.id as string, 10)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   await prisma.evenement.delete({ where: { id } })
   res.json({ success: true, message: 'Événement supprimé.', data: null })
 }
