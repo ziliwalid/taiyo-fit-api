@@ -1,7 +1,14 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import prisma from '../lib/prisma'
+import { zodFail } from '../lib/validate'
+
+const LoginSchema = z.object({
+  email: z.string().min(1, 'Email requis.'),
+  password: z.string().min(1, 'Mot de passe requis.'),
+})
 
 function signToken(id: number, role: string) {
   return jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn: '7d' })
@@ -40,7 +47,9 @@ export async function register(req: Request, res: Response) {
 }
 
 export async function login(req: Request, res: Response) {
-  const { email, password } = req.body
+  const parsed = LoginSchema.safeParse(req.body)
+  if (!parsed.success) { zodFail(res, parsed.error); return }
+  const { email, password } = parsed.data
   const user = await prisma.utilisateur.findUnique({ where: { email } })
   if (!user) {
     res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })

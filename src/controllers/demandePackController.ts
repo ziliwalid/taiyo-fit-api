@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 import { sendDemandePackToAdmin, sendDemandeConfirmationToMembre, sendValidationConfirmationToMembre } from '../services/mailer'
 import { logSession } from '../lib/logSession'
+import { parseId } from '../lib/validate'
 
 export async function demanderPack(req: AuthRequest, res: Response) {
   const { packId } = req.body
@@ -73,7 +74,8 @@ export async function demanderPack(req: AuthRequest, res: Response) {
 }
 
 export async function validerDemande(req: AuthRequest, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
 
   const demande = await prisma.demandePack.findUnique({
     where: { id },
@@ -116,7 +118,8 @@ export async function validerDemande(req: AuthRequest, res: Response) {
 }
 
 export async function refuserDemande(req: AuthRequest, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
 
   const demande = await prisma.demandePack.findUnique({
     where: { id },

@@ -3,6 +3,7 @@ import { StatutReservation, StatutSeance } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
 import { logSession } from '../lib/logSession'
+import { parseId } from '../lib/validate'
 
 const CANCELLATION_HOURS = 48
 
@@ -38,7 +39,8 @@ export async function listCours(req: AuthRequest, res: Response) {
 }
 
 export async function getCours(req: AuthRequest, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const cours = await prisma.cours.findUnique({
     where: { id },
     include: {
@@ -67,7 +69,8 @@ export async function getCours(req: AuthRequest, res: Response) {
 }
 
 export async function reserver(req: AuthRequest, res: Response) {
-  const coursId = parseInt(req.params.id as string)
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
   const utilisateurId = req.user!.id
 
   const cours = await prisma.cours.findUnique({
@@ -122,7 +125,8 @@ export async function reserver(req: AuthRequest, res: Response) {
 }
 
 export async function annulerReservation(req: AuthRequest, res: Response) {
-  const coursId       = parseInt(req.params.id as string)
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
   const utilisateurId = req.user!.id
 
   const reservation = await prisma.reservation.findUnique({

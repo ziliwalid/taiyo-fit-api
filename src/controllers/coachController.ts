@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { StatutReservation } from '@prisma/client'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
+import { parseId } from '../lib/validate'
 
 export async function getMesCours(req: AuthRequest, res: Response) {
   const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })
@@ -29,7 +30,8 @@ export async function getMesCours(req: AuthRequest, res: Response) {
 }
 
 export async function getCoursParticipants(req: AuthRequest, res: Response) {
-  const coursId = parseInt(req.params.id as string)
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
 
   const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })
   if (!coach) {

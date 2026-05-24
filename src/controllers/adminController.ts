@@ -1,9 +1,29 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
 import { Role, StatutReservation, StatutSeance, StatutPaiement, StatutDemande } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { sendSeanceAnnuleeToMembre } from '../services/mailer'
 import { logSession } from '../lib/logSession'
+import { parseId, zodFail } from '../lib/validate'
+
+const CreatePackSchema = z.object({
+  nom:          z.string().min(1, 'nom est requis.'),
+  nbSessions:   z.number().int().positive('nbSessions doit être un entier positif.'),
+  tarif:        z.number().min(0).nullable().optional(),
+  ancienTarif:  z.number().min(0).nullable().optional(),
+  description:  z.string().nullable().optional(),
+  tag:          z.string().nullable().optional(),
+})
+
+const UpdatePackSchema = z.object({
+  nom:          z.string().min(1).optional(),
+  nbSessions:   z.number().int().positive('nbSessions doit être un entier positif.').optional(),
+  tarif:        z.number().min(0).nullable().optional(),
+  ancienTarif:  z.number().min(0).nullable().optional(),
+  description:  z.string().nullable().optional(),
+  tag:          z.string().nullable().optional(),
+})
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -48,7 +68,8 @@ export async function createCoach(req: Request, res: Response) {
 }
 
 export async function getParticipants(req: Request, res: Response) {
-  const coursId = parseInt(req.params.id as string)
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
   const reservations = await prisma.reservation.findMany({
     where: { coursId, statut: { not: StatutReservation.ANNULE } },
     include: { utilisateur: { select: { nom: true, prenom: true, telephone: true } } }
@@ -62,7 +83,8 @@ export async function getParticipants(req: Request, res: Response) {
 }
 
 export async function updateReservation(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const { statut } = req.body
 
   if (!Object.values(StatutReservation).includes(statut)) {
@@ -117,31 +139,16 @@ export async function createCours(req: Request, res: Response) {
 }
 
 export async function createPack(req: Request, res: Response) {
-  const { nom, nbSessions, tarif, ancienTarif, description, tag } = req.body
-  if (!nom || !nbSessions) {
-    res.status(400).json({ success: false, message: 'Champs requis manquants : nom, nbSessions' })
-    return
-  }
-  if (!Number.isInteger(nbSessions) || nbSessions <= 0) {
-    res.status(400).json({ success: false, message: 'nbSessions doit être un entier positif.' })
-    return
-  }
-  const parsedTarif = tarif != null ? parseFloat(tarif) : undefined
-  const parsedAncienTarif = ancienTarif != null ? parseFloat(ancienTarif) : undefined
-  if (parsedTarif !== undefined && (isNaN(parsedTarif) || parsedTarif < 0)) {
-    res.status(400).json({ success: false, message: 'tarif invalide.' })
-    return
-  }
-  if (parsedAncienTarif !== undefined && (isNaN(parsedAncienTarif) || parsedAncienTarif < 0)) {
-    res.status(400).json({ success: false, message: 'ancienTarif invalide.' })
-    return
-  }
+  const parsed = CreatePackSchema.safeParse(req.body)
+  if (!parsed.success) { zodFail(res, parsed.error); return }
+  const { nom, nbSessions, tarif, ancienTarif, description, tag } = parsed.data
   const pack = await prisma.pack.create({
     data: {
-      nom, nbSessions, description,
-      ...(parsedTarif !== undefined && { tarif: parsedTarif }),
-      ...(parsedAncienTarif !== undefined && { ancienTarif: parsedAncienTarif }),
-      ...(tag ? { tag } : {})
+      nom, nbSessions,
+      ...(tarif != null && { tarif }),
+      ...(ancienTarif != null && { ancienTarif }),
+      ...(description != null && { description }),
+      ...(tag != null && { tag }),
     }
   })
   res.status(201).json({
@@ -152,44 +159,33 @@ export async function createPack(req: Request, res: Response) {
 }
 
 export async function updatePack(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
-  const { tag, nom, nbSessions, tarif, ancienTarif, description } = req.body
+  const id = parseId(req.params.id, res)
+  if (id === null) return
+  const parsed = UpdatePackSchema.safeParse(req.body)
+  if (!parsed.success) { zodFail(res, parsed.error); return }
   const pack = await prisma.pack.findUnique({ where: { id } })
   if (!pack) {
     res.status(404).json({ success: false, message: 'Pack introuvable' })
     return
   }
-  const parsedNbSessions = nbSessions != null ? parseInt(nbSessions) : undefined
-  if (parsedNbSessions !== undefined && (!Number.isInteger(parsedNbSessions) || parsedNbSessions <= 0)) {
-    res.status(400).json({ success: false, message: 'nbSessions doit être un entier positif.' })
-    return
-  }
-  const parsedTarif = tarif !== undefined && tarif !== '' && tarif != null ? parseFloat(tarif) : undefined
-  const parsedAncienTarif = ancienTarif !== undefined && ancienTarif !== '' && ancienTarif != null ? parseFloat(ancienTarif) : undefined
-  if (parsedTarif !== undefined && (isNaN(parsedTarif) || parsedTarif < 0)) {
-    res.status(400).json({ success: false, message: 'tarif invalide.' })
-    return
-  }
-  if (parsedAncienTarif !== undefined && (isNaN(parsedAncienTarif) || parsedAncienTarif < 0)) {
-    res.status(400).json({ success: false, message: 'ancienTarif invalide.' })
-    return
-  }
+  const { nom, nbSessions, tarif, ancienTarif, description, tag } = parsed.data
   const updated = await prisma.pack.update({
     where: { id },
     data: {
-      ...(tag !== undefined && { tag: tag || null }),
-      ...(nom && { nom }),
-      ...(parsedNbSessions !== undefined && { nbSessions: parsedNbSessions }),
-      ...(tarif !== undefined && { tarif: tarif !== '' && tarif != null ? parsedTarif ?? null : null }),
-      ...(ancienTarif !== undefined && { ancienTarif: ancienTarif !== '' && ancienTarif != null ? parsedAncienTarif ?? null : null }),
-      ...(description !== undefined && { description: description || null }),
+      ...(nom !== undefined && { nom }),
+      ...(nbSessions !== undefined && { nbSessions }),
+      ...(tarif !== undefined && { tarif }),
+      ...(ancienTarif !== undefined && { ancienTarif }),
+      ...(description !== undefined && { description }),
+      ...(tag !== undefined && { tag }),
     }
   })
   res.json({ success: true, message: 'Pack mis à jour.', data: updated })
 }
 
 export async function deletePack(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const pack = await prisma.pack.findUnique({ where: { id } })
   if (!pack) {
     res.status(404).json({ success: false, message: 'Pack introuvable' })
@@ -233,7 +229,8 @@ export async function adminListPacks(req: Request, res: Response) {
 }
 
 export async function togglePackActif(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const pack = await prisma.pack.findUnique({ where: { id } })
   if (!pack) {
     res.status(404).json({ success: false, message: 'Pack introuvable' })
@@ -256,7 +253,8 @@ export async function listCoaches(req: Request, res: Response) {
 }
 
 export async function updateStatutSeance(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const { statutSeance, messageCoach } = req.body
 
   if (statutSeance && !Object.values(StatutSeance).includes(statutSeance)) {
@@ -402,7 +400,8 @@ export async function listCoachesDetailed(req: Request, res: Response) {
 }
 
 export async function toggleActif(req: Request, res: Response) {
-  const id = parseInt(req.params.id as string)
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const user = await prisma.utilisateur.findUnique({ where: { id } })
   if (!user) {
     res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
