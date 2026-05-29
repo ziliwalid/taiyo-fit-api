@@ -116,6 +116,26 @@ export async function sendAnnulationReservationToAdmin(data: {
   })
 }
 
+export async function sendBienvenueToMembre(data: { prenom: string; email: string }) {
+  await transporter.sendMail({
+    from: FROM,
+    to: data.email,
+    subject: `Bienvenue chez Taiyo Fit ! 🥋`,
+    html: `
+      <h2>Bienvenue ${data.prenom} !</h2>
+      <p>Ton compte Taiyo Fit a bien été créé. On est ravis de t'avoir parmi nous !</p>
+      <p>Voici les prochaines étapes :</p>
+      <ul>
+        <li>Choisis un pack de sessions depuis l'application</li>
+        <li>Envoie ta demande — Malak la validera dès réception de ton virement</li>
+        <li>Réserve tes premiers cours et débarque au studio !</li>
+      </ul>
+      <p>À très bientôt,</p>
+      <p><em>L'équipe Taiyo Fit</em></p>
+    `
+  })
+}
+
 export async function sendValidationConfirmationToMembre(data: DemandePackEmailData) {
   await transporter.sendMail({
     from: FROM,

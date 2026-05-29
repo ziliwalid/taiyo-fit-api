@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import prisma from '../lib/prisma'
 import { zodFail } from '../lib/validate'
+import { sendBienvenueToMembre } from '../services/mailer'
 
 const LoginSchema = z.object({
   email: z.string().min(1, 'Email requis.'),
@@ -39,6 +40,7 @@ export async function register(req: Request, res: Response) {
   const user = await prisma.utilisateur.create({
     data: { email, password: hash, nom, prenom, telephone }
   })
+  sendBienvenueToMembre({ prenom, email }).catch(() => {})
   res.status(201).json({
     success: true,
     message: `Bienvenue ${prenom} ! Votre compte a été créé avec succès.`,
