@@ -1,7 +1,14 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.FROM_EMAIL ?? 'Taiyo Fit <onboarding@resend.dev>'
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+})
+
+const FROM = `Taiyo Fit <${process.env.GMAIL_USER}>`
 
 interface DemandePackEmailData {
   membrePrenom: string
@@ -14,7 +21,7 @@ interface DemandePackEmailData {
 }
 
 export async function sendDemandePackToAdmin(data: DemandePackEmailData) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: process.env.MALAK_EMAIL!,
     subject: `Nouvelle demande de pack — ${data.membrePrenom} ${data.membreNom}`,
@@ -33,7 +40,7 @@ export async function sendDemandePackToAdmin(data: DemandePackEmailData) {
 }
 
 export async function sendDemandeConfirmationToMembre(data: DemandePackEmailData) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: data.membreEmail,
     subject: `Demande de pack reçue — ${data.packNom}`,
@@ -48,7 +55,7 @@ export async function sendDemandeConfirmationToMembre(data: DemandePackEmailData
 }
 
 export async function sendPaiementExpireToMembre(data: { membrePrenom: string; membreEmail: string; packNom: string }) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: data.membreEmail,
     subject: `Paiement expiré — ${data.packNom}`,
@@ -71,7 +78,7 @@ interface SeanceAnnuleeEmailData {
 }
 
 export async function sendSeanceAnnuleeToMembre(data: SeanceAnnuleeEmailData) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: data.membreEmail,
     subject: `Séance annulée — ${data.coursTitre}`,
@@ -93,7 +100,7 @@ export async function sendAnnulationReservationToAdmin(data: {
   coursTitre: string
   coursDate: string
 }) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: process.env.MALAK_EMAIL!,
     subject: `Annulation réservation — ${data.membrePrenom} ${data.membreNom} · ${data.coursTitre}`,
@@ -109,8 +116,28 @@ export async function sendAnnulationReservationToAdmin(data: {
   })
 }
 
+export async function sendBienvenueToMembre(data: { prenom: string; email: string }) {
+  await transporter.sendMail({
+    from: FROM,
+    to: data.email,
+    subject: `Bienvenue chez Taiyo Fit !`,
+    html: `
+      <h2>Bienvenue ${data.prenom} !</h2>
+      <p>Ton compte Taiyo Fit a bien été créé. On est ravis de t'avoir parmi nous !</p>
+      <p>Voici les prochaines étapes :</p>
+      <ul>
+        <li>Choisis ton pack de sessions et paie en ligne en toute sécurité</li>
+        <li>Ton pack est activé instantanément après le paiement</li>
+        <li>Réserve tes cours et débarque au studio !</li>
+      </ul>
+      <p>À très bientôt,</p>
+      <p><em>L'équipe Taiyo Fit</em></p>
+    `
+  })
+}
+
 export async function sendValidationConfirmationToMembre(data: DemandePackEmailData) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: data.membreEmail,
     subject: `Pack activé — ${data.packNom}`,
