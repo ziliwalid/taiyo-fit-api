@@ -28,12 +28,14 @@ export function startExpirePaiementsJob() {
 
     console.log(`[cron] ${expiredPaiements.length} paiement(s) EN_ATTENTE expirés → ECHOUE`)
 
-    expiredPaiements.forEach(p => {
+    for (const p of expiredPaiements) {
       sendPaiementExpireToMembre({
         membrePrenom: p.utilisateur.prenom,
         membreEmail:  p.utilisateur.email,
         packNom:      p.pack.nom,
-      }).catch(() => {})
-    })
+      }).catch((err) => {
+        console.error(`[cron] email expiration failed for ${p.utilisateur.email}:`, err.message)
+      })
+    }
   })
 }
