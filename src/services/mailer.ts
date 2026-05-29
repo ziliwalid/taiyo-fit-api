@@ -120,15 +120,15 @@ export async function sendBienvenueToMembre(data: { prenom: string; email: strin
   await transporter.sendMail({
     from: FROM,
     to: data.email,
-    subject: `Bienvenue chez Taiyo Fit ! 🥋`,
+    subject: `Bienvenue chez Taiyo Fit !`,
     html: `
       <h2>Bienvenue ${data.prenom} !</h2>
       <p>Ton compte Taiyo Fit a bien été créé. On est ravis de t'avoir parmi nous !</p>
       <p>Voici les prochaines étapes :</p>
       <ul>
-        <li>Choisis un pack de sessions depuis l'application</li>
-        <li>Envoie ta demande — Malak la validera dès réception de ton virement</li>
-        <li>Réserve tes premiers cours et débarque au studio !</li>
+        <li>Choisis ton pack de sessions et paie en ligne en toute sécurité</li>
+        <li>Ton pack est activé instantanément après le paiement</li>
+        <li>Réserve tes cours et débarque au studio !</li>
       </ul>
       <p>À très bientôt,</p>
       <p><em>L'équipe Taiyo Fit</em></p>
