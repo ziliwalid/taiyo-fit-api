@@ -144,7 +144,7 @@ export async function stripeWebhook(req: Request, res: Response) {
 
     logSession(paiement.utilisateurId, paiement.pack.nbSessions, `Achat pack (Stripe) · ${paiement.pack.nom}`)
 
-    // Fire-and-forget confirmation email — webhook must not fail on email error
+    // Fire-and-forget — webhook must respond 200 regardless of email result
     sendValidationConfirmationToMembre({
       membrePrenom:    paiement.utilisateur.prenom,
       membreNom:       paiement.utilisateur.nom,
@@ -153,7 +153,9 @@ export async function stripeWebhook(req: Request, res: Response) {
       packNom:         paiement.pack.nom,
       packNbSessions:  paiement.pack.nbSessions,
       packDescription: paiement.pack.description,
-    }).catch(() => {})
+    }).catch((err) => {
+      console.error('[webhook] email confirmation failed for', paiement.utilisateur.email, ':', err.message)
+    })
   }
 
   // ── Session expired before payment ──────────────────────────────────────

@@ -159,12 +159,13 @@ export async function sendValidationConfirmationToMembre(data: DemandePackEmailD
   await send({
     from: FROM(),
     to: data.membreEmail,
-    subject: `Pack activé — ${data.packNom}`,
+    subject: `Paiement confirmé — ${data.packNom}`,
     html: `
-      <h2>Bonne nouvelle ${data.membrePrenom} !</h2>
-      <p>Ton pack <strong>${data.packNom}</strong> est maintenant actif — tu disposes de <strong>${data.packNbSessions} sessions</strong>.</p>
-      <p>Tu peux dès maintenant réserver tes cours dans l'application.</p>
-      <p>On t'attend !</p>
+      <h2>Merci ${data.membrePrenom} !</h2>
+      <p>Ton paiement a bien été reçu. Ton pack <strong>${data.packNom}</strong> est maintenant actif.</p>
+      <p>Tu disposes de <strong>${data.packNbSessions} sessions</strong> à utiliser quand tu veux.</p>
+      <p>Réserve ton premier cours dès maintenant depuis l'application.</p>
+      <p>On t'attend au studio !</p>
       <p><em>L'équipe Taiyo Fit</em></p>
     `
   })
