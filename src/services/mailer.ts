@@ -9,15 +9,13 @@ function getTransporter() {
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
-      family: 4, // force IPv4 — Railway IPv6 unreachable (not in @types/nodemailer but works at runtime)
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD,
       },
       pool: true,
       maxConnections: 3,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)
+    })
   }
   return _transporter
 }
