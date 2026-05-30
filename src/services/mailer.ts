@@ -1,23 +1,39 @@
 import nodemailer from 'nodemailer'
+import { resolve4 } from 'dns/promises'
 
-// Lazy singleton — created on first use so env vars are guaranteed available
+// Singleton — initialised lazily and async so we can resolve smtp.gmail.com
+// to an IPv4 address before creating the transporter (Railway containers
+// cannot reach Google's SMTP IPv6 addresses).
 let _transporter: nodemailer.Transporter | null = null
+let _initPromise: Promise<void> | null = null
 
-function getTransporter() {
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-      pool: true,
-      maxConnections: 3,
-    })
+async function init() {
+  let host = 'smtp.gmail.com'
+  try {
+    const [ipv4] = await resolve4('smtp.gmail.com')
+    host = ipv4
+    console.log('[mailer] resolved smtp.gmail.com →', host)
+  } catch {
+    // fallback to hostname — DNS might still work at connect time
   }
-  return _transporter
+
+  _transporter = nodemailer.createTransport({
+    host,
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    pool: true,
+    maxConnections: 3,
+  })
+}
+
+async function getTransporter(): Promise<nodemailer.Transporter> {
+  if (!_initPromise) _initPromise = init()
+  await _initPromise
+  return _transporter!
 }
 
 const FROM = () => `Taiyo Fit <${process.env.GMAIL_USER}>`
@@ -25,7 +41,8 @@ const FROM = () => `Taiyo Fit <${process.env.GMAIL_USER}>`
 // Verify SMTP on startup — logs result, never throws
 export async function verifyMailer() {
   try {
-    await getTransporter().verify()
+    const t = await getTransporter()
+    await t.verify()
     console.log('[mailer] SMTP Gmail OK')
   } catch (err: any) {
     console.error('[mailer] SMTP Gmail FAILED:', err.message)
@@ -35,7 +52,8 @@ export async function verifyMailer() {
 // Send with 3 attempts + exponential backoff
 async function send(options: nodemailer.SendMailOptions, attempt = 1): Promise<void> {
   try {
-    await getTransporter().sendMail(options)
+    const t = await getTransporter()
+    await t.sendMail(options)
   } catch (err: any) {
     if (attempt < 3) {
       const delay = attempt * 2000
