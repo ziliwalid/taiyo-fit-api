@@ -6,15 +6,16 @@ let _transporter: nodemailer.Transporter | null = null
 function getTransporter() {
   if (!_transporter) {
     _transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      family: 4, // force IPv4 — Railway IPv6 unreachable
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD,
       },
       pool: true,
       maxConnections: 3,
-      rateDelta: 1000,
-      rateLimit: 5,
     })
   }
   return _transporter
