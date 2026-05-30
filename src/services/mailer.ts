@@ -1,69 +1,42 @@
-import nodemailer from 'nodemailer'
-import { resolve4 } from 'dns/promises'
+import { Resend } from 'resend'
 
-// Singleton — initialised lazily and async so we can resolve smtp.gmail.com
-// to an IPv4 address before creating the transporter (Railway containers
-// cannot reach Google's SMTP IPv6 addresses).
-let _transporter: nodemailer.Transporter | null = null
-let _initPromise: Promise<void> | null = null
+let _resend: Resend | null = null
 
-async function init() {
-  let host = 'smtp.gmail.com'
-  try {
-    const [ipv4] = await resolve4('smtp.gmail.com')
-    host = ipv4
-    console.log('[mailer] resolved smtp.gmail.com →', host)
-  } catch {
-    // fallback to hostname — DNS might still work at connect time
-  }
-
-  _transporter = nodemailer.createTransport({
-    host,
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    pool: true,
-    maxConnections: 3,
-  })
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
 }
 
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (!_initPromise) _initPromise = init()
-  await _initPromise
-  return _transporter!
-}
+const FROM = process.env.FROM_EMAIL ?? 'Taiyo Fit <onboarding@resend.dev>'
 
-const FROM = () => `Taiyo Fit <${process.env.GMAIL_USER}>`
-
-// Verify SMTP on startup — logs result, never throws
-export async function verifyMailer() {
-  try {
-    const t = await getTransporter()
-    await t.verify()
-    console.log('[mailer] SMTP Gmail OK')
-  } catch (err: any) {
-    console.error('[mailer] SMTP Gmail FAILED:', err.message)
+// Called on startup — confirms the API key is present
+export function verifyMailer() {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[mailer] RESEND_API_KEY is not set — emails will fail')
+  } else {
+    console.log('[mailer] Resend ready ✓')
   }
 }
 
-// Send with 3 attempts + exponential backoff
-async function send(options: nodemailer.SendMailOptions, attempt = 1): Promise<void> {
-  try {
-    const t = await getTransporter()
-    await t.sendMail(options)
-  } catch (err: any) {
-    if (attempt < 3) {
-      const delay = attempt * 2000
-      console.warn(`[mailer] attempt ${attempt} failed (${err.message}) — retry in ${delay}ms`)
-      await new Promise(r => setTimeout(r, delay))
-      return send(options, attempt + 1)
-    }
-    console.error(`[mailer] email to ${options.to} failed after 3 attempts:`, err.message)
-    throw err
+// ─── Core send with full logging ──────────────────────────────────────────────
+
+interface SendParams {
+  template: string
+  to: string
+  subject: string
+  html: string
+}
+
+async function send({ template, to, subject, html }: SendParams): Promise<void> {
+  console.log(`[mailer] sending "${template}" → ${to}`)
+  const { data, error } = await getResend().emails.send({ from: FROM, to, subject, html })
+
+  if (error) {
+    console.error(`[mailer] FAILED "${template}" → ${to} | ${JSON.stringify(error)}`)
+    throw new Error(error.message)
   }
+
+  console.log(`[mailer] sent "${template}" → ${to} | id=${data?.id}`)
 }
 
 // ─── Templates ────────────────────────────────────────────────────────────────
@@ -80,7 +53,7 @@ interface DemandePackEmailData {
 
 export async function sendDemandePackToAdmin(data: DemandePackEmailData) {
   await send({
-    from: FROM(),
+    template: 'demande-pack-admin',
     to: process.env.MALAK_EMAIL!,
     subject: `Nouvelle demande de pack — ${data.membrePrenom} ${data.membreNom}`,
     html: `
@@ -93,13 +66,13 @@ export async function sendDemandePackToAdmin(data: DemandePackEmailData) {
       ${data.packDescription ? `<p><strong>Description :</strong> ${data.packDescription}</p>` : ''}
       <hr>
       <p>Connecte-toi à l'interface admin pour valider la demande.</p>
-    `
+    `,
   })
 }
 
 export async function sendDemandeConfirmationToMembre(data: DemandePackEmailData) {
   await send({
-    from: FROM(),
+    template: 'demande-pack-confirmation',
     to: data.membreEmail,
     subject: `Demande de pack reçue — ${data.packNom}`,
     html: `
@@ -108,13 +81,13 @@ export async function sendDemandeConfirmationToMembre(data: DemandePackEmailData
       <p>Tu recevras un email de confirmation dès validation.</p>
       <p>À très bientôt au studio !</p>
       <p><em>L'équipe Taiyo Fit</em></p>
-    `
+    `,
   })
 }
 
 export async function sendPaiementExpireToMembre(data: { membrePrenom: string; membreEmail: string; packNom: string }) {
   await send({
-    from: FROM(),
+    template: 'paiement-expire',
     to: data.membreEmail,
     subject: `Paiement expiré — ${data.packNom}`,
     html: `
@@ -122,7 +95,7 @@ export async function sendPaiementExpireToMembre(data: { membrePrenom: string; m
       <p>Ta session de paiement pour le pack <strong>${data.packNom}</strong> a expiré (délai de 10 minutes dépassé).</p>
       <p>Aucun montant n'a été débité. Tu peux relancer une commande à tout moment depuis l'application.</p>
       <p><em>L'équipe Taiyo Fit</em></p>
-    `
+    `,
   })
 }
 
@@ -137,7 +110,7 @@ interface SeanceAnnuleeEmailData {
 
 export async function sendSeanceAnnuleeToMembre(data: SeanceAnnuleeEmailData) {
   await send({
-    from: FROM(),
+    template: 'seance-annulee',
     to: data.membreEmail,
     subject: `Séance annulée — ${data.coursTitre}`,
     html: `
@@ -147,7 +120,7 @@ export async function sendSeanceAnnuleeToMembre(data: SeanceAnnuleeEmailData) {
          Il te reste désormais <strong>${data.sessionsRestantes} session${data.sessionsRestantes > 1 ? 's' : ''}</strong> disponible${data.sessionsRestantes > 1 ? 's' : ''}.</p>
       <p>Toutes nos excuses pour la gêne occasionnée.</p>
       <p><em>L'équipe Taiyo Fit</em></p>
-    `
+    `,
   })
 }
 
@@ -159,7 +132,7 @@ export async function sendAnnulationReservationToAdmin(data: {
   coursDate: string
 }) {
   await send({
-    from: FROM(),
+    template: 'annulation-reservation-admin',
     to: process.env.MALAK_EMAIL!,
     subject: `Annulation réservation — ${data.membrePrenom} ${data.membreNom} · ${data.coursTitre}`,
     html: `
@@ -175,7 +148,7 @@ export async function sendAnnulationReservationToAdmin(data: {
 
 export async function sendValidationConfirmationToMembre(data: DemandePackEmailData) {
   await send({
-    from: FROM(),
+    template: 'paiement-confirme',
     to: data.membreEmail,
     subject: `Paiement confirmé — ${data.packNom}`,
     html: `
@@ -185,13 +158,13 @@ export async function sendValidationConfirmationToMembre(data: DemandePackEmailD
       <p>Réserve ton premier cours dès maintenant depuis l'application.</p>
       <p>On t'attend au studio !</p>
       <p><em>L'équipe Taiyo Fit</em></p>
-    `
+    `,
   })
 }
 
 export async function sendBienvenueToMembre(data: { prenom: string; email: string }) {
   await send({
-    from: FROM(),
+    template: 'bienvenue',
     to: data.email,
     subject: `Bienvenue chez Taiyo Fit !`,
     html: `
@@ -205,6 +178,6 @@ export async function sendBienvenueToMembre(data: { prenom: string; email: strin
       </ul>
       <p>À très bientôt,</p>
       <p><em>L'équipe Taiyo Fit</em></p>
-    `
+    `,
   })
 }
