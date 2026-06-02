@@ -261,7 +261,12 @@ export async function listCoaches(req: Request, res: Response) {
 export async function updateStatutSeance(req: Request, res: Response) {
   const id = parseId(req.params.id, res)
   if (id === null) return
-  const { statutSeance, messageCoach } = req.body
+  const { statutSeance, messageCoach, genre } = req.body
+
+  if (genre !== undefined && genre !== null && !GENRES_VALIDES.includes(genre)) {
+    res.status(400).json({ success: false, message: `Genre invalide. Valeurs acceptées : ${GENRES_VALIDES.join(', ')}` })
+    return
+  }
 
   if (statutSeance && !Object.values(StatutSeance).includes(statutSeance)) {
     res.status(400).json({
@@ -344,6 +349,7 @@ export async function updateStatutSeance(req: Request, res: Response) {
       ...(messageCoach !== undefined && { messageCoach }),
       ...(adresse !== undefined && { adresse: adresse || null }),
       ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+      ...(genre !== undefined && { genre: genre || null }),
     }
   })
 
