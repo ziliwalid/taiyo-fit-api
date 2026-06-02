@@ -106,8 +106,10 @@ export async function updateReservation(req: Request, res: Response) {
   res.json({ success: true, message: messages[statut as StatutReservation], data: resa })
 }
 
+const GENRES_VALIDES = ['BOOTCAMP', 'HIIT', 'YOGA', 'PILATES', 'TRAINING'] as const
+
 export async function createCours(req: Request, res: Response) {
-  const { titre, dateHeure, dureeMinutes, placesMax, coachId, adresse, imageUrl } = req.body
+  const { titre, dateHeure, dureeMinutes, placesMax, coachId, adresse, imageUrl, genre } = req.body
   if (!titre || !dateHeure || !dureeMinutes || !placesMax || !coachId) {
     res.status(400).json({ success: false, message: 'Champs requis manquants : titre, dateHeure, dureeMinutes, placesMax, coachId' })
     return
@@ -124,8 +126,12 @@ export async function createCours(req: Request, res: Response) {
     res.status(400).json({ success: false, message: 'placesMax doit être un entier positif.' })
     return
   }
+  if (genre && !GENRES_VALIDES.includes(genre)) {
+    res.status(400).json({ success: false, message: `Genre invalide. Valeurs acceptées : ${GENRES_VALIDES.join(', ')}` })
+    return
+  }
   const cours = await prisma.cours.create({
-    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}) },
+    data: { titre, dateHeure: new Date(dateHeure), dureeMinutes, placesMax, coachId, ...(adresse ? { adresse } : {}), ...(imageUrl ? { imageUrl } : {}), ...(genre ? { genre } : {}) },
     include: {
       coach: { select: { nom: true, prenom: true } },
       _count: { select: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } } },

@@ -45,6 +45,7 @@ model Coach {
 model Cours {
   id           Int           @id @default(autoincrement())
   titre        String
+  genre        GenreCours?
   dateHeure    DateTime
   dureeMinutes Int
   placesMax    Int
@@ -57,6 +58,14 @@ model Cours {
   adresse      String?
   imageUrl     String?
   createdAt    DateTime      @default(now())
+}
+
+enum GenreCours {
+  BOOTCAMP
+  HIIT
+  YOGA
+  PILATES
+  TRAINING
 }
 
 enum StatutSeance {
