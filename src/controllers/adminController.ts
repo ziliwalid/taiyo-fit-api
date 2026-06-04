@@ -408,7 +408,27 @@ export async function listCoachesDetailed(req: Request, res: Response) {
     },
     orderBy: { prenom: 'asc' }
   })
-  res.json({ success: true, message: `${coachs.length} coach(s)`, data: coachs })
+
+  // Calcul note moyenne par coach
+  const coachIds = coachs.map(c => c.coach?.id).filter(Boolean) as number[]
+  const notesAgg = await Promise.all(
+    coachIds.map(coachId =>
+      prisma.noteCours.aggregate({
+        where: { cours: { coachId } },
+        _avg: { note: true },
+        _count: { note: true },
+      }).then(agg => ({ coachId, avg: agg._avg.note, count: agg._count.note }))
+    )
+  )
+  const notesMap = new Map(notesAgg.map(n => [n.coachId, n]))
+
+  const data = coachs.map(c => ({
+    ...c,
+    noteMoyenne: c.coach ? (notesMap.get(c.coach.id)?.avg ?? null) : null,
+    nbNotes:     c.coach ? (notesMap.get(c.coach.id)?.count ?? 0) : 0,
+  }))
+
+  res.json({ success: true, message: `${coachs.length} coach(s)`, data })
 }
 
 export async function toggleActif(req: Request, res: Response) {
