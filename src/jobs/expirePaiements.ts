@@ -3,9 +3,11 @@ import { StatutPaiement } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { sendPaiementExpireToMembre } from '../services/mailer'
 
-// Runs every 2 minutes — marks EN_ATTENTE payments older than 10 min as ECHOUE and notifies members
+// Runs every 4 minutes — keeps Neon DB warm + expires stale payments
 export function startExpirePaiementsJob() {
-  cron.schedule('*/2 * * * *', async () => {
+  cron.schedule('*/4 * * * *', async () => {
+    // Keep-alive ping to prevent Neon cold starts
+    await prisma.$queryRaw`SELECT 1`
     const cutoff = new Date(Date.now() - 10 * 60 * 1000)
 
     const expiredPaiements = await prisma.paiement.findMany({
