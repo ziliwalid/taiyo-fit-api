@@ -29,6 +29,22 @@ export async function getMesCours(req: AuthRequest, res: Response) {
   res.json({ success: true, message: `${cours.length} cours`, data })
 }
 
+export async function getMonScore(req: AuthRequest, res: Response) {
+  const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })
+  if (!coach) { res.status(404).json({ success: false, message: 'Profil coach introuvable.' }); return }
+
+  const agg = await prisma.noteCours.aggregate({
+    where: { cours: { coachId: coach.id } },
+    _avg: { note: true },
+    _count: { note: true },
+  })
+  res.json({
+    success: true,
+    message: 'Score coach',
+    data: { noteMoyenne: agg._avg.note, nbNotes: agg._count.note },
+  })
+}
+
 export async function getCoursParticipants(req: AuthRequest, res: Response) {
   const coursId = parseId(req.params.id, res)
   if (coursId === null) return

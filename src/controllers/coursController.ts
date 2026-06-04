@@ -5,6 +5,71 @@ import prisma from '../lib/prisma'
 import { logSession } from '../lib/logSession'
 import { parseId } from '../lib/validate'
 
+const SELECT_AUTEUR = { id: true, prenom: true, nom: true, role: true } as const
+
+async function canAccessMessages(utilisateurId: number, coursId: number): Promise<boolean> {
+  const [reservation, cours] = await Promise.all([
+    prisma.reservation.findFirst({
+      where: { utilisateurId, coursId, statut: { not: StatutReservation.ANNULE } },
+      select: { id: true },
+    }),
+    prisma.cours.findUnique({
+      where: { id: coursId },
+      include: { coach: { select: { utilisateurId: true } } },
+    }),
+  ])
+  if (reservation) return true
+  if (cours?.coach?.utilisateurId === utilisateurId) return true
+  return false
+}
+
+export async function getMessages(req: AuthRequest, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+  const utilisateurId = req.user!.id
+
+  const access = await canAccessMessages(utilisateurId, coursId)
+  if (!access) {
+    res.status(403).json({ success: false, message: 'Accès réservé aux participants et au coach.' })
+    return
+  }
+
+  const messages = await prisma.messageCours.findMany({
+    where: { coursId },
+    include: { auteur: { select: SELECT_AUTEUR } },
+    orderBy: { createdAt: 'asc' },
+  })
+  res.json({ success: true, message: `${messages.length} message(s)`, data: messages })
+}
+
+export async function sendMessage(req: AuthRequest, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+  const utilisateurId = req.user!.id
+  const { contenu } = req.body
+
+  if (!contenu?.trim()) {
+    res.status(400).json({ success: false, message: 'Le message ne peut pas être vide.' })
+    return
+  }
+  if (contenu.trim().length > 500) {
+    res.status(400).json({ success: false, message: 'Message trop long (max 500 caractères).' })
+    return
+  }
+
+  const access = await canAccessMessages(utilisateurId, coursId)
+  if (!access) {
+    res.status(403).json({ success: false, message: 'Accès réservé aux participants et au coach.' })
+    return
+  }
+
+  const message = await prisma.messageCours.create({
+    data: { contenu: contenu.trim(), coursId, auteurId: utilisateurId },
+    include: { auteur: { select: SELECT_AUTEUR } },
+  })
+  res.status(201).json({ success: true, message: 'Message envoyé.', data: message })
+}
+
 export async function noterCours(req: AuthRequest, res: Response) {
   const coursId = parseId(req.params.id, res)
   if (coursId === null) return

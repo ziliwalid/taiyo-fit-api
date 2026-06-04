@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOrCoach } from '../middleware/adminOrCoach'
-import { listCours, getCours, reserver, annulerReservation, noterCours } from '../controllers/coursController'
+import { listCours, getCours, reserver, annulerReservation, noterCours, getMessages, sendMessage } from '../controllers/coursController'
 import { updateStatutSeance } from '../controllers/adminController'
 
 const router = Router()
@@ -112,6 +112,8 @@ router.post('/:id/reserver', reserver)
  *         description: Réservé aux coachs et à l'admin
  */
 router.patch('/:id/message', adminOrCoach, updateStatutSeance)
-router.post('/:id/noter', requireAuth, noterCours)
+router.post('/:id/noter',    requireAuth, noterCours)
+router.get('/:id/messages',  requireAuth, getMessages)
+router.post('/:id/messages', requireAuth, sendMessage)
 
 export default router

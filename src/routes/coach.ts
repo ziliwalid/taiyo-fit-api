@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { coachOnly } from '../middleware/coachOnly'
-import { getMesCours, getCoursParticipants } from '../controllers/coachController'
+import { getMesCours, getCoursParticipants, getMonScore } from '../controllers/coachController'
 
 const router = Router()
 router.use(requireAuth, coachOnly)
@@ -40,5 +40,6 @@ router.get('/mes-cours', getMesCours)
  *         description: Accès réservé aux coachs
  */
 router.get('/cours/:id/participants', getCoursParticipants)
+router.get('/mon-score', getMonScore)
 
 export default router
