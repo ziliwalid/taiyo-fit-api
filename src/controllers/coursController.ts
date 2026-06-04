@@ -5,6 +5,41 @@ import prisma from '../lib/prisma'
 import { logSession } from '../lib/logSession'
 import { parseId } from '../lib/validate'
 
+export async function noterCours(req: AuthRequest, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+  const utilisateurId = req.user!.id
+  const { note } = req.body
+
+  if (!note || ![1, 2, 3].includes(Number(note))) {
+    res.status(400).json({ success: false, message: 'La note doit être 1, 2 ou 3 soleils.' })
+    return
+  }
+
+  const cours = await prisma.cours.findUnique({ where: { id: coursId } })
+  if (!cours) { res.status(404).json({ success: false, message: 'Cours introuvable.' }); return }
+  if (cours.statutSeance !== StatutSeance.EFFECTUE) {
+    res.status(409).json({ success: false, message: 'Ce cours n\'est pas encore effectué.' })
+    return
+  }
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { utilisateurId_coursId: { utilisateurId, coursId } },
+  })
+  if (!reservation || reservation.statut === StatutReservation.ANNULE) {
+    res.status(403).json({ success: false, message: 'Tu dois avoir participé à ce cours pour le noter.' })
+    return
+  }
+
+  const result = await prisma.noteCours.upsert({
+    where: { utilisateurId_coursId: { utilisateurId, coursId } },
+    create: { utilisateurId, coursId, note: Number(note) },
+    update: { note: Number(note) },
+  })
+
+  res.json({ success: true, message: 'Merci pour ton avis ☀️', data: { note: result.note } })
+}
+
 const CANCELLATION_HOURS = 48
 
 async function marquerSeancesEffectuees() {

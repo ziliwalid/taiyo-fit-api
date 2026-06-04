@@ -109,7 +109,7 @@ export async function getMonPack(req: AuthRequest, res: Response) {
 export async function getMonDashboard(req: AuthRequest, res: Response) {
   const userId = req.user!.id
 
-  const [comptePack, reservations, seancesEffectuees] = await Promise.all([
+  const [comptePack, reservations, seancesEffectuees, recentes, notes] = await Promise.all([
     prisma.comptePack.findUnique({
       where: { utilisateurId: userId },
       select: {
@@ -149,7 +149,34 @@ export async function getMonDashboard(req: AuthRequest, res: Response) {
         cours: { statutSeance: StatutSeance.EFFECTUE },
       },
     }),
+
+    // Last 5 EFFECTUE sessions for rating
+    prisma.reservation.findMany({
+      where: {
+        utilisateurId: userId,
+        statut: { not: StatutReservation.ANNULE },
+        cours: { statutSeance: StatutSeance.EFFECTUE },
+      },
+      include: {
+        cours: {
+          select: {
+            id: true, titre: true, dateHeure: true, dureeMinutes: true, genre: true,
+            coach: { select: { nom: true, prenom: true } },
+          },
+        },
+      },
+      orderBy: { cours: { dateHeure: 'desc' } },
+      take: 5,
+    }),
+
+    // User's existing notes
+    prisma.noteCours.findMany({
+      where: { utilisateurId: userId },
+      select: { coursId: true, note: true },
+    }),
   ])
+
+  const notesMap = new Map(notes.map((n) => [n.coursId, n.note]))
 
   res.json({
     success: true,
@@ -160,6 +187,11 @@ export async function getMonDashboard(req: AuthRequest, res: Response) {
         reservationId: r.id,
         statut: r.statut,
         cours: r.cours,
+      })),
+      recentes: recentes.map((r) => ({
+        reservationId: r.id,
+        cours: r.cours,
+        maNote: notesMap.get(r.coursId) ?? null,
       })),
       stats: {
         seancesEffectuees,

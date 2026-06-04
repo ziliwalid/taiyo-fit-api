@@ -24,6 +24,7 @@ model Utilisateur {
   paiements    Paiement[]
   coach              Coach?
   historiquesSessions HistoriqueSession[]
+  notes               NoteCours[]
   createdAt          DateTime       @default(now())
 }
 
@@ -42,6 +43,18 @@ model Coach {
   utilisateurId Int?         @unique
 }
 
+model NoteCours {
+  id            Int         @id @default(autoincrement())
+  note          Int
+  coursId       Int
+  utilisateurId Int
+  cours         Cours       @relation(fields: [coursId], references: [id])
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@unique([utilisateurId, coursId])
+}
+
 model Cours {
   id           Int           @id @default(autoincrement())
   titre        String
@@ -53,6 +66,7 @@ model Cours {
   coachId      Int
   reservations        Reservation[]
   historiquesSessions HistoriqueSession[]
+  notes               NoteCours[]
   statutSeance        StatutSeance  @default(PLANIFIE)
   messageCoach String?
   adresse      String?
