@@ -162,6 +162,40 @@ export async function sendValidationConfirmationToMembre(data: DemandePackEmailD
   })
 }
 
+export async function sendVerificationEmail(data: { prenom: string; email: string; token: string; frontendUrl: string }) {
+  const link = `${data.frontendUrl}/verify-email?token=${data.token}`
+  await send({
+    template: 'verification-email',
+    to: data.email,
+    subject: 'Active ton compte Taiyo Fit ☀️',
+    html: `
+      <div style="background:#0a0a0a;padding:48px 32px;font-family:system-ui,sans-serif;color:#ffffff;max-width:480px">
+        <div style="margin-bottom:32px">
+          <span style="font-size:28px;font-weight:900;color:#FFD700;letter-spacing:-0.03em">TAIYO FIT</span>
+        </div>
+        <h1 style="font-size:22px;font-weight:800;margin:0 0 12px;letter-spacing:-0.02em">
+          Salut ${data.prenom}, active ton compte !
+        </h1>
+        <p style="color:rgba(255,255,255,0.5);font-size:15px;line-height:1.6;margin:0 0 32px">
+          Ton compte Taiyo Fit a bien été créé. Il ne reste qu'une étape : vérifier ton adresse email pour pouvoir te connecter et réserver tes séances.
+        </p>
+        <a href="${link}"
+          style="display:inline-block;background:#FFD700;color:#000000;font-weight:800;font-size:13px;text-decoration:none;padding:16px 36px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:32px">
+          Vérifier mon adresse email
+        </a>
+        <p style="color:rgba(255,255,255,0.25);font-size:12px;margin:0 0 8px">
+          Ce lien est valable 72h. Si tu n'as pas créé de compte, ignore cet email.
+        </p>
+        <p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0">
+          Lien : ${link}
+        </p>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:28px 0" />
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin:0">L'équipe Taiyo Fit · Paris</p>
+      </div>
+    `,
+  })
+}
+
 export async function sendBienvenueToMembre(data: { prenom: string; email: string }) {
   await send({
     template: 'bienvenue',

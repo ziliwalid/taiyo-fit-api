@@ -1,10 +1,11 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import prisma from '../lib/prisma'
 import { zodFail } from '../lib/validate'
-import { sendBienvenueToMembre } from '../services/mailer'
+import { sendBienvenueToMembre, sendVerificationEmail } from '../services/mailer'
 
 const LoginSchema = z.object({
   email: z.string().min(1, 'Email requis.'),
@@ -16,6 +17,7 @@ function signToken(id: number, role: string) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://taiyo-fit-lyart.vercel.app'
 
 export async function register(req: Request, res: Response) {
   const { email, password, nom, prenom, telephone } = req.body
@@ -36,15 +38,22 @@ export async function register(req: Request, res: Response) {
     res.status(409).json({ success: false, message: 'Cette adresse email est déjà utilisée' })
     return
   }
-  const hash = await bcrypt.hash(password, 10)
-  const user = await prisma.utilisateur.create({
-    data: { email, password: hash, nom, prenom, telephone }
+
+  const hash  = await bcrypt.hash(password, 10)
+  const token = randomBytes(32).toString('hex')
+  const tokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000) // 72h
+
+  await prisma.utilisateur.create({
+    data: { email, password: hash, nom, prenom, telephone, emailVerifie: false, tokenVerification: token, tokenExpires },
   })
+
+  // Fire-and-forget emails
+  sendVerificationEmail({ prenom, email, token, frontendUrl: FRONTEND_URL }).catch(() => {})
   sendBienvenueToMembre({ prenom, email }).catch(() => {})
+
   res.status(201).json({
     success: true,
-    message: `Bienvenue ${prenom} ! Votre compte a été créé avec succès.`,
-    token: signToken(user.id, user.role)
+    message: `Compte créé ! Vérifie ta boîte mail ${email} pour activer ton compte.`,
   })
 }
 
@@ -52,6 +61,7 @@ export async function login(req: Request, res: Response) {
   const parsed = LoginSchema.safeParse(req.body)
   if (!parsed.success) { zodFail(res, parsed.error); return }
   const { email, password } = parsed.data
+
   const user = await prisma.utilisateur.findUnique({ where: { email } })
   if (!user) {
     res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
@@ -60,6 +70,14 @@ export async function login(req: Request, res: Response) {
   const valid = await bcrypt.compare(password, user.password)
   if (!valid) {
     res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' })
+    return
+  }
+  if (!user.emailVerifie) {
+    res.status(403).json({
+      success: false,
+      message: 'Adresse email non vérifiée. Vérifie ta boîte mail ou demande un nouveau lien.',
+      code: 'EMAIL_NOT_VERIFIED',
+    })
     return
   }
   if (!user.actif) {
@@ -73,4 +91,44 @@ export async function login(req: Request, res: Response) {
     prenom: user.prenom,
     actif: user.actif,
   })
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  const { token } = req.body
+  if (!token) {
+    res.status(400).json({ success: false, message: 'Token manquant.' })
+    return
+  }
+
+  const user = await prisma.utilisateur.findFirst({ where: { tokenVerification: token } })
+  if (!user) {
+    res.status(400).json({ success: false, message: 'Lien invalide ou déjà utilisé.' })
+    return
+  }
+  if (user.tokenExpires && new Date() > user.tokenExpires) {
+    res.status(400).json({ success: false, message: 'Lien expiré. Demande un nouveau lien.', code: 'TOKEN_EXPIRED' })
+    return
+  }
+
+  await prisma.utilisateur.update({
+    where: { id: user.id },
+    data: { emailVerifie: true, tokenVerification: null, tokenExpires: null },
+  })
+
+  res.json({ success: true, message: 'Email vérifié ! Tu peux maintenant te connecter.' })
+}
+
+export async function resendVerification(req: Request, res: Response) {
+  const { email } = req.body
+  // Always return 200 to prevent email enumeration
+  const user = email ? await prisma.utilisateur.findUnique({ where: { email } }) : null
+
+  if (user && !user.emailVerifie) {
+    const token = randomBytes(32).toString('hex')
+    const tokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000)
+    await prisma.utilisateur.update({ where: { id: user.id }, data: { tokenVerification: token, tokenExpires } })
+    sendVerificationEmail({ prenom: user.prenom, email: user.email, token, frontendUrl: FRONTEND_URL }).catch(() => {})
+  }
+
+  res.json({ success: true, message: 'Si ce compte existe et n\'est pas vérifié, un email a été envoyé.' })
 }

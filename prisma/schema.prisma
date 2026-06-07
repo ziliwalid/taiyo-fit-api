@@ -17,6 +17,9 @@ model Utilisateur {
   prenom       String
   telephone               String?
   actif                   Boolean        @default(true)
+  emailVerifie            Boolean        @default(false)
+  tokenVerification       String?        @unique
+  tokenExpires            DateTime?
   derniereMiseAJourProfil DateTime?
   reservations Reservation[]
   comptePack   ComptePack?
