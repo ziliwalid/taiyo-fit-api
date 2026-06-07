@@ -5,6 +5,7 @@ import { parseId } from '../lib/validate'
 import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
+import { adminListLieux, createLieu, toggleLieu, deleteLieu, updateMapSettings } from '../controllers/lieuController'
 
 const router = Router()
 router.use(requireAuth, adminOnly)
@@ -565,5 +566,12 @@ router.get('/membres/:id/historique', async (req, res) => {
   })
   res.json({ success: true, message: 'OK', data: historique })
 })
+
+// ─── Carte / lieux ───────────────────────────────────────────────────────────
+router.get('/lieux',               adminListLieux)
+router.post('/lieux',              createLieu)
+router.patch('/lieux/:id/toggle',  toggleLieu)
+router.delete('/lieux/:id',        deleteLieu)
+router.patch('/lieux/settings',    updateMapSettings)
 
 export default router

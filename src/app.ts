@@ -11,6 +11,7 @@ import paiementRoutes from './routes/paiement'
 import evenementsRoutes from './routes/evenements'
 import { stripeWebhook } from './controllers/paiementController'
 import { listPacks } from './controllers/packController'
+import { listLieux } from './controllers/lieuController'
 
 const app = express()
 app.use(cors())
@@ -47,7 +48,8 @@ app.use('/admin',       adminRoutes)
 app.use('/coach',       coachRoutes)
 app.use('/paiement',    paiementRoutes)
 app.use('/evenements',  evenementsRoutes)
-app.get('/packs',       listPacks)
+app.get('/packs',  listPacks)
+app.get('/lieux',  listLieux)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

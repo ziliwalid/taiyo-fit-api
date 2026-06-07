@@ -44,6 +44,20 @@ model Coach {
   utilisateurId Int?         @unique
 }
 
+model Lieu {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  lat       Float
+  lng       Float
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model SiteSettings {
+  id          Int     @id @default(1)
+  afficherMap Boolean @default(true)
+}
+
 model MessageCours {
   id        Int         @id @default(autoincrement())
   contenu   String
