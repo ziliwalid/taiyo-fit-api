@@ -23,8 +23,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://taiyo-fit-lyart.vercel
 
 export async function register(req: Request, res: Response) {
   const { email, password, nom, prenom, telephone } = req.body
-  if (!email || !password || !nom || !prenom) {
-    res.status(400).json({ success: false, message: 'Champs requis manquants : email, password, nom, prenom' })
+  if (!email || !password || !nom || !prenom || !telephone) {
+    res.status(400).json({ success: false, message: 'Champs requis manquants : email, password, nom, prenom, telephone' })
     return
   }
   if (!EMAIL_RE.test(email)) {
