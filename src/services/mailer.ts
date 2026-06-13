@@ -27,11 +27,11 @@ function layout(content: string): string {
 
         <!-- Logo -->
         <div style="margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.06)">
-          <a href="${FRONTEND_URL}" style="text-decoration:none">
-            <span style="font-size:22px;font-weight:900;color:#FFD700;letter-spacing:-0.03em;text-transform:uppercase">TAIYO</span>
-            <span style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.03em;text-transform:uppercase"> FIT</span>
+          <a href="${FRONTEND_URL}" style="text-decoration:none;display:inline-block">
+            <img src="https://taiyo-fit-lyart.vercel.app/logo.png" alt="Taiyo Fit" width="120"
+              style="display:block;width:120px;height:auto" />
           </a>
-          <span style="display:block;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:0.25em;text-transform:uppercase;margin-top:4px">Shine Together · Rise Together</span>
+          <span style="display:block;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:0.25em;text-transform:uppercase;margin-top:8px">Shine Together · Rise Together</span>
         </div>
 
         <!-- Content -->
