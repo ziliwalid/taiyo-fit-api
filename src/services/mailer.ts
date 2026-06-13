@@ -253,6 +253,24 @@ export async function sendVerificationEmail(data: { prenom: string; email: strin
   })
 }
 
+// Membre — réinitialisation du mot de passe
+export async function sendResetPassword(data: { prenom: string; email: string; token: string; frontendUrl: string }) {
+  const link = `${data.frontendUrl}/reset-password?token=${data.token}`
+  await send({
+    template: 'reset-password',
+    to: data.email,
+    subject: 'Réinitialisation de ton mot de passe Taiyo Fit',
+    html: layout(`
+      ${tag('Sécurité du compte')}
+      ${h1(`Réinitialise ton mot de passe, ${data.prenom}`)}
+      ${p('Tu as demandé à réinitialiser ton mot de passe. Clique sur le bouton ci-dessous pour en choisir un nouveau.')}
+      ${btn('Choisir un nouveau mot de passe', link)}
+      ${p('<span style="font-size:12px;color:rgba(255,255,255,0.2)">Ce lien est valable 1h. Si tu n\'as pas fait cette demande, ignore cet email — ton mot de passe reste inchangé.</span>')}
+      <p style="color:rgba(255,255,255,0.12);font-size:11px;margin:8px 0 0;word-break:break-all">${link}</p>
+    `),
+  })
+}
+
 // Membre — email de bienvenue (envoyé à l'inscription en parallèle de la vérif)
 export async function sendBienvenueToMembre(data: { prenom: string; email: string }) {
   await send({

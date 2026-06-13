@@ -22,6 +22,8 @@ model Utilisateur {
   tokenExpires            DateTime?
   derniereMiseAJourProfil DateTime?
   stripeCustomerId        String?
+  tokenReset              String?   @unique
+  tokenResetExpires       DateTime?
   reservations Reservation[]
   comptePack   ComptePack?
   demandesPack DemandePack[]

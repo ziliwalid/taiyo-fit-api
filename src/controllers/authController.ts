@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import prisma from '../lib/prisma'
 import { zodFail } from '../lib/validate'
-import { sendBienvenueToMembre, sendVerificationEmail } from '../services/mailer'
+import { sendBienvenueToMembre, sendVerificationEmail, sendResetPassword } from '../services/mailer'
 
 const LoginSchema = z.object({
   email: z.string().min(1, 'Email requis.'),
@@ -118,6 +118,51 @@ export async function verifyEmail(req: Request, res: Response) {
   })
 
   res.json({ success: true, message: 'Email vérifié ! Tu peux maintenant te connecter.' })
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = req.body
+  const user = email ? await prisma.utilisateur.findUnique({ where: { email } }) : null
+
+  if (user) {
+    const token = randomBytes(32).toString('hex')
+    const tokenResetExpires = new Date(Date.now() + 60 * 60 * 1000) // 1h
+    await prisma.utilisateur.update({ where: { id: user.id }, data: { tokenReset: token, tokenResetExpires } })
+    sendResetPassword({ prenom: user.prenom, email: user.email, token, frontendUrl: FRONTEND_URL }).catch(() => {})
+  }
+
+  // Always 200 to prevent email enumeration
+  res.json({ success: true, message: 'Si ce compte existe, un email de réinitialisation a été envoyé.' })
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const { token, password } = req.body
+  if (!token || !password) {
+    res.status(400).json({ success: false, message: 'Token et mot de passe requis.' })
+    return
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 6 caractères.' })
+    return
+  }
+
+  const user = await prisma.utilisateur.findFirst({ where: { tokenReset: token } })
+  if (!user || !user.tokenResetExpires) {
+    res.status(400).json({ success: false, message: 'Lien invalide ou déjà utilisé.' })
+    return
+  }
+  if (new Date() > user.tokenResetExpires) {
+    res.status(400).json({ success: false, message: 'Lien expiré. Fais une nouvelle demande.', code: 'TOKEN_EXPIRED' })
+    return
+  }
+
+  const hash = await bcrypt.hash(password, 10)
+  await prisma.utilisateur.update({
+    where: { id: user.id },
+    data: { password: hash, tokenReset: null, tokenResetExpires: null },
+  })
+
+  res.json({ success: true, message: 'Mot de passe mis à jour. Tu peux te connecter.' })
 }
 
 export async function resendVerification(req: Request, res: Response) {
