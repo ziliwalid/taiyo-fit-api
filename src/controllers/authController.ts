@@ -13,7 +13,9 @@ const LoginSchema = z.object({
 })
 
 function signToken(id: number, role: string) {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+  // Admins get shorter sessions for security
+  const expiresIn = role === 'ADMIN' ? '24h' : '7d'
+  return jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn })
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
