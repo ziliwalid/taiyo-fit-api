@@ -52,8 +52,17 @@ export async function createCheckoutSession(req: AuthRequest, res: Response) {
     return
   }
 
-  // Get or create Stripe Customer (enables history, saved cards, easier refunds)
+  // Get or create Stripe Customer — if the stored ID is from test mode it won't
+  // exist in live mode, so we catch that error and create a fresh customer.
   let stripeCustomerId = user.stripeCustomerId
+  if (stripeCustomerId) {
+    try {
+      await stripe.customers.retrieve(stripeCustomerId)
+    } catch {
+      stripeCustomerId = null
+      await prisma.utilisateur.update({ where: { id: user.id }, data: { stripeCustomerId: null } })
+    }
+  }
   if (!stripeCustomerId) {
     const customer = await stripe.customers.create({
       email: user.email,
