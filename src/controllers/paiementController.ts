@@ -52,10 +52,25 @@ export async function createCheckoutSession(req: AuthRequest, res: Response) {
     return
   }
 
+  // Get or create Stripe Customer (enables history, saved cards, easier refunds)
+  let stripeCustomerId = user.stripeCustomerId
+  if (!stripeCustomerId) {
+    const customer = await stripe.customers.create({
+      email: user.email,
+      name:  `${user.prenom} ${user.nom}`,
+      metadata: { utilisateurId: String(user.id) },
+    })
+    stripeCustomerId = customer.id
+    await prisma.utilisateur.update({
+      where: { id: user.id },
+      data:  { stripeCustomerId },
+    })
+  }
+
   // Create Stripe Checkout Session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
-    customer_email: user.email,
+    customer: stripeCustomerId,
     locale: 'fr',
     line_items: [{
       price_data: {
@@ -113,7 +128,7 @@ export async function stripeWebhook(req: Request, res: Response) {
 
   // ── Payment succeeded ────────────────────────────────────────────────────
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as { id: string; payment_intent: string | null }
+    const session = event.data.object as { id: string; payment_intent: string | null | { id: string } }
 
     const paiement = await prisma.paiement.findUnique({
       where:   { stripeSessionId: session.id },
@@ -132,7 +147,11 @@ export async function stripeWebhook(req: Request, res: Response) {
         where: { id: paiement.id },
         data:  {
           statut:         StatutPaiement.REUSSI,
-          stripePaymentId: session.payment_intent as string,
+          stripePaymentId: typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : typeof session.payment_intent === 'object' && session.payment_intent !== null
+              ? session.payment_intent.id
+              : null,
         },
       }),
       prisma.comptePack.upsert({

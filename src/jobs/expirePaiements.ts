@@ -8,7 +8,10 @@ export function startExpirePaiementsJob() {
   cron.schedule('*/4 * * * *', async () => {
     // Keep-alive ping to prevent Neon cold starts
     await prisma.$queryRaw`SELECT 1`
-    const cutoff = new Date(Date.now() - 10 * 60 * 1000)
+    // 35 min cutoff — safety net only. Stripe sessions last 30 min and fire
+    // checkout.session.expired webhook which handles expiry. This cron only
+    // catches edge cases where the webhook failed to deliver.
+    const cutoff = new Date(Date.now() - 35 * 60 * 1000)
 
     const expiredPaiements = await prisma.paiement.findMany({
       where: {
