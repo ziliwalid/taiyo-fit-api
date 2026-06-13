@@ -13,8 +13,8 @@ const LoginSchema = z.object({
 })
 
 function signToken(id: number, role: string) {
-  // Admins get shorter sessions for security
-  const expiresIn = role === 'ADMIN' ? '24h' : '7d'
+  // Admins: 8h absolute max + 30min inactivity on frontend
+  const expiresIn = role === 'ADMIN' ? '8h' : '7d'
   return jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn })
 }
 
