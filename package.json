@@ -10,7 +10,7 @@
     "dev": "ts-node src/index.ts",
     "build": "prisma generate && prisma db push && tsc",
     "start": "node dist/src/index.js",
-    "test": "jest --runInBand --forceExit",
+    "test": "cross-env NODE_ENV=test jest --runInBand --forceExit",
     "seed": "ts-node prisma/seed.ts"
   },
   "jest": {
@@ -52,6 +52,7 @@
     "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "cross-env": "^10.1.0",
     "jest": "^30.4.2",
     "prisma": "^5.22.0",
     "supertest": "^7.2.2",

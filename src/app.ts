@@ -71,9 +71,11 @@ app.use('/api-docs', (req: express.Request, res: express.Response, next: express
   res.status(401).send('Accès refusé.')
 }, swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
-app.use('/auth/login',  authLimiter)
-app.use('/auth/register', authLimiter)
-app.use('/paiement/checkout', checkoutLimiter)
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/auth/login',      authLimiter)
+  app.use('/auth/register',   authLimiter)
+  app.use('/paiement/checkout', checkoutLimiter)
+}
 app.use('/auth',        authRoutes)
 app.use('/cours',       coursRoutes)
 app.use('/mon-compte',  packRoutes)
