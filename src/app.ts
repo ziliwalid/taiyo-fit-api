@@ -1,4 +1,5 @@
 import express from 'express'
+import helmet from 'helmet'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import swaggerUi from 'swagger-ui-express'
@@ -21,6 +22,7 @@ const app = express()
 // X-Forwarded-For and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
 app.set('trust proxy', 1)
 
+app.use(helmet())
 app.use(cors({
   origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
