@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
-import { createCheckoutSession, getSession } from '../controllers/paiementController'
+import { createCheckoutSession, getSession, cancelPendingPayment } from '../controllers/paiementController'
 
 // NOTE: /paiement/webhook is NOT here — it needs express.raw() and is
 // registered directly in app.ts BEFORE express.json().
@@ -43,6 +43,7 @@ router.use(requireAuth)
  *         description: Pack actif existant ou paiement déjà en cours
  */
 router.post('/checkout', createCheckoutSession)
+router.post('/cancel', cancelPendingPayment)
 
 /**
  * @openapi

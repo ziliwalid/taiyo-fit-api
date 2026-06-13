@@ -198,6 +198,34 @@ export async function stripeWebhook(req: Request, res: Response) {
   res.json({ received: true })
 }
 
+// ─── POST /paiement/cancel ───────────────────────────────────────────────────
+// Called when the user goes back from Stripe Checkout (cancel_url hit).
+// Expires the Stripe session immediately so the user can retry without waiting.
+
+export async function cancelPendingPayment(req: AuthRequest, res: Response) {
+  const paiement = await prisma.paiement.findFirst({
+    where: { utilisateurId: req.user!.id, statut: StatutPaiement.EN_ATTENTE },
+  })
+
+  if (!paiement) {
+    res.json({ success: true })
+    return
+  }
+
+  try {
+    await stripe.checkout.sessions.expire(paiement.stripeSessionId)
+  } catch {
+    // Session may already be expired — ignore
+  }
+
+  await prisma.paiement.update({
+    where: { id: paiement.id },
+    data: { statut: StatutPaiement.ECHOUE },
+  })
+
+  res.json({ success: true })
+}
+
 // ─── GET /paiement/session/:sessionId ────────────────────────────────────────
 // Called by the success page to show confirmation details.
 
