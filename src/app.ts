@@ -16,6 +16,11 @@ import { listLieux } from './controllers/lieuController'
 
 const app = express()
 
+// Railway (and most cloud platforms) sit behind a reverse proxy.
+// Without this, express-rate-limit can't read the real client IP from
+// X-Forwarded-For and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1)
+
 app.use(cors({
   origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
