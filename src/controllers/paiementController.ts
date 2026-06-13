@@ -41,15 +41,25 @@ export async function createCheckoutSession(req: AuthRequest, res: Response) {
   }
 
   // Guard: already has a pending payment (prevent duplicate sessions)
+  // If the Stripe session is no longer open (user pressed browser back or abandoned),
+  // auto-expire it so the user can retry immediately.
   const paiementEnAttente = await prisma.paiement.findFirst({
     where: { utilisateurId: user.id, statut: StatutPaiement.EN_ATTENTE },
   })
   if (paiementEnAttente) {
-    res.status(409).json({
-      success: false,
-      message: 'Tu as déjà un paiement en cours. Vérifie ta boîte mail ou attends quelques minutes.',
-    })
-    return
+    const stripeSession = await stripe.checkout.sessions.retrieve(paiementEnAttente.stripeSessionId)
+    if (stripeSession.status !== 'open') {
+      await prisma.paiement.update({
+        where: { id: paiementEnAttente.id },
+        data: { statut: StatutPaiement.ECHOUE },
+      })
+    } else {
+      res.status(409).json({
+        success: false,
+        message: 'Tu as déjà un paiement en cours. Vérifie ta boîte mail ou attends quelques minutes.',
+      })
+      return
+    }
   }
 
   // Get or create Stripe Customer — if the stored ID is from test mode it won't
