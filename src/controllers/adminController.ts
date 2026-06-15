@@ -144,6 +144,22 @@ export async function createCours(req: Request, res: Response) {
   })
 }
 
+export async function listAllCours(req: Request, res: Response) {
+  const cours = await prisma.cours.findMany({
+    include: {
+      coach: { select: { nom: true, prenom: true } },
+      _count: { select: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } } },
+    },
+    orderBy: { dateHeure: 'asc' },
+  })
+  const data = cours.map(({ _count, ...c }) => ({
+    ...c,
+    nbParticipants: _count.reservations,
+    placesRestantes: c.placesMax - _count.reservations,
+  }))
+  res.json({ success: true, message: `${data.length} cours`, data })
+}
+
 export async function createPack(req: Request, res: Response) {
   const parsed = CreatePackSchema.safeParse(req.body)
   if (!parsed.success) { zodFail(res, parsed.error); return }
@@ -291,7 +307,7 @@ export async function updateStatutSeance(req: Request, res: Response) {
     return
   }
 
-  const { adresse, imageUrl } = req.body
+  const { adresse, imageUrl, dateHeure: newDateHeure, visible } = req.body
   const isNewlyCancelled = statutSeance === StatutSeance.ANNULE
 
   // ── Cancellation: refund sessions + cancel reservations atomically ────────
@@ -350,6 +366,8 @@ export async function updateStatutSeance(req: Request, res: Response) {
       ...(adresse !== undefined && { adresse: adresse || null }),
       ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
       ...(genre !== undefined && { genre: genre || null }),
+      ...(newDateHeure !== undefined && { dateHeure: new Date(newDateHeure) }),
+      ...(visible !== undefined && { visible }),
     }
   })
 
