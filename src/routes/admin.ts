@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
 import { parseId } from '../lib/validate'
-import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, deleteTransaction, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 import { adminListLieux, createLieu, toggleLieu, deleteLieu, updateMapSettings } from '../controllers/lieuController'
@@ -189,7 +189,6 @@ router.get('/stats', getStats)
  *         description: Liste des transactions avec utilisateur et pack associés
  */
 router.get('/transactions', listTransactions)
-router.delete('/transactions/:id', deleteTransaction)
 
 /**
  * @openapi

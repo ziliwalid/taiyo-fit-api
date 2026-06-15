@@ -517,14 +517,6 @@ export async function listTransactions(req: Request, res: Response) {
   })
 }
 
-export async function deleteTransaction(req: Request, res: Response) {
-  const id = req.params.id
-  const tx = await prisma.paiement.findUnique({ where: { id } })
-  if (!tx) return res.status(404).json({ success: false, message: 'Transaction introuvable.' })
-  await prisma.paiement.delete({ where: { id } })
-  res.json({ success: true, message: 'Transaction supprimée.' })
-}
-
 export async function getStats(req: Request, res: Response) {
   const { from, to } = req.query
 
