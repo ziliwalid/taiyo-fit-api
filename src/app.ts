@@ -14,6 +14,7 @@ import evenementsRoutes from './routes/evenements'
 import { stripeWebhook } from './controllers/paiementController'
 import { listPacks } from './controllers/packController'
 import { listLieux } from './controllers/lieuController'
+import { listAvisPublic } from './controllers/avisController'
 
 const app = express()
 
@@ -85,6 +86,7 @@ app.use('/paiement',    paiementRoutes)
 app.use('/evenements',  evenementsRoutes)
 app.get('/packs',  listPacks)
 app.get('/lieux',  listLieux)
+app.get('/avis',   listAvisPublic)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

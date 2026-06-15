@@ -172,11 +172,11 @@ export async function getMonDashboard(req: AuthRequest, res: Response) {
     // User's existing notes
     prisma.noteCours.findMany({
       where: { utilisateurId: userId },
-      select: { coursId: true, note: true },
+      select: { coursId: true, note: true, commentaire: true },
     }),
   ])
 
-  const notesMap = new Map(notes.map((n) => [n.coursId, n.note]))
+  const notesMap = new Map(notes.map((n) => [n.coursId, { note: n.note, commentaire: n.commentaire ?? null }]))
 
   res.json({
     success: true,
@@ -191,7 +191,8 @@ export async function getMonDashboard(req: AuthRequest, res: Response) {
       recentes: recentes.map((r) => ({
         reservationId: r.id,
         cours: r.cours,
-        maNote: notesMap.get(r.coursId) ?? null,
+        maNote: notesMap.get(r.coursId)?.note ?? null,
+        maCommentaire: notesMap.get(r.coursId)?.commentaire ?? null,
       })),
       stats: {
         seancesEffectuees,

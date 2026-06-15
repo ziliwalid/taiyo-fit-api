@@ -103,13 +103,17 @@ export async function noterCours(req: AuthRequest, res: Response) {
     return
   }
 
+  const commentaire = typeof req.body.commentaire === 'string' && req.body.commentaire.trim()
+    ? req.body.commentaire.trim().slice(0, 500)
+    : undefined
+
   const result = await prisma.noteCours.upsert({
     where: { utilisateurId_coursId: { utilisateurId, coursId } },
-    create: { utilisateurId, coursId, note },
-    update: { note },
+    create: { utilisateurId, coursId, note, ...(commentaire !== undefined ? { commentaire } : {}) },
+    update: { note, ...(commentaire !== undefined ? { commentaire } : {}) },
   })
 
-  res.json({ success: true, message: 'Merci pour ton avis ☀️', data: { note: result.note } })
+  res.json({ success: true, message: 'Merci pour ton avis ☀️', data: { note: result.note, commentaire: result.commentaire ?? null } })
 }
 
 const CANCELLATION_HOURS = 48

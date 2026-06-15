@@ -6,6 +6,7 @@ import { getParticipants, updateReservation, createCours, listAllCours, createPa
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 import { adminListLieux, createLieu, toggleLieu, deleteLieu, updateMapSettings } from '../controllers/lieuController'
+import { updateAvisSettings } from '../controllers/avisController'
 
 const router = Router()
 router.use(requireAuth, adminOnly)
@@ -574,5 +575,6 @@ router.post('/lieux',              createLieu)
 router.patch('/lieux/:id/toggle',  toggleLieu)
 router.delete('/lieux/:id',        deleteLieu)
 router.patch('/lieux/settings',    updateMapSettings)
+router.patch('/settings/avis',    updateAvisSettings)
 
 export default router

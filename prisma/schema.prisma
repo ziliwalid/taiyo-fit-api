@@ -60,8 +60,9 @@ model Lieu {
 }
 
 model SiteSettings {
-  id          Int     @id @default(1)
-  afficherMap Boolean @default(true)
+  id           Int     @id @default(1)
+  afficherMap  Boolean @default(true)
+  afficherAvis Boolean @default(true)
 }
 
 model MessageCours {
@@ -77,6 +78,7 @@ model MessageCours {
 model NoteCours {
   id            Int         @id @default(autoincrement())
   note          Int
+  commentaire   String?
   coursId       Int
   utilisateurId Int
   cours         Cours       @relation(fields: [coursId], references: [id])
