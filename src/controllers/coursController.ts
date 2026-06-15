@@ -127,6 +127,7 @@ async function marquerSeancesEffectuees() {
 export async function listCours(req: AuthRequest, res: Response) {
   await marquerSeancesEffectuees()
   const cours = await prisma.cours.findMany({
+    where: { visible: true },
     include: {
       coach: { select: { nom: true, prenom: true } },
       _count: { select: { reservations: { where: { statut: { not: StatutReservation.ANNULE } } } } },

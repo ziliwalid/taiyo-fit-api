@@ -1,8 +1,36 @@
 import { Response } from 'express'
 import { StatutReservation } from '@prisma/client'
+import { z } from 'zod'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../lib/prisma'
-import { parseId } from '../lib/validate'
+import { parseId, zodFail } from '../lib/validate'
+
+const UpdateCoursSchema = z.object({
+  dateHeure: z.string().datetime({ offset: true }).optional(),
+  visible:   z.boolean().optional(),
+})
+
+export async function updateCours(req: AuthRequest, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+
+  const parsed = UpdateCoursSchema.safeParse(req.body)
+  if (!parsed.success) return zodFail(res, parsed.error)
+
+  const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })
+  if (!coach) return res.status(404).json({ success: false, message: 'Profil coach introuvable.' })
+
+  const cours = await prisma.cours.findUnique({ where: { id: coursId } })
+  if (!cours) return res.status(404).json({ success: false, message: 'Cours introuvable.' })
+  if (cours.coachId !== coach.id) return res.status(403).json({ success: false, message: 'Ce cours ne vous appartient pas.' })
+
+  const data: { dateHeure?: Date; visible?: boolean } = {}
+  if (parsed.data.dateHeure !== undefined) data.dateHeure = new Date(parsed.data.dateHeure)
+  if (parsed.data.visible !== undefined) data.visible = parsed.data.visible
+
+  const updated = await prisma.cours.update({ where: { id: coursId }, data })
+  res.json({ success: true, message: 'Cours mis à jour.', data: updated })
+}
 
 export async function getMesCours(req: AuthRequest, res: Response) {
   const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })

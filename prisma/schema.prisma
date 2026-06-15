@@ -103,6 +103,7 @@ model Cours {
   messageCoach String?
   adresse      String?
   imageUrl     String?
+  visible      Boolean       @default(true)
   createdAt    DateTime      @default(now())
 }
 
