@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import prisma from '../lib/prisma'
+import { parseId } from '../lib/validate'
 
 export async function listAvisAdmin(_req: Request, res: Response) {
   const [avis, settings] = await Promise.all([
@@ -20,8 +21,8 @@ export async function listAvisAdmin(_req: Request, res: Response) {
 }
 
 export async function deleteAvis(req: Request, res: Response) {
-  const id = parseInt(req.params.id, 10)
-  if (isNaN(id)) { res.status(400).json({ success: false, message: 'ID invalide.' }); return }
+  const id = parseId(req.params.id, res)
+  if (id === null) return
   const avis = await prisma.noteCours.findUnique({ where: { id } })
   if (!avis) { res.status(404).json({ success: false, message: 'Avis introuvable.' }); return }
   await prisma.noteCours.delete({ where: { id } })
