@@ -159,7 +159,7 @@ export async function getCours(req: AuthRequest, res: Response) {
       coach: { select: { nom: true, prenom: true } },
       reservations: {
         where: { statut: { not: StatutReservation.ANNULE } },
-        include: { utilisateur: { select: { nom: true, prenom: true } } }
+        select: { utilisateurId: true, utilisateur: { select: { nom: true, prenom: true } } }
       }
     }
   })
@@ -171,12 +171,18 @@ export async function getCours(req: AuthRequest, res: Response) {
   const participants = cours.reservations.map((r: { utilisateur: { nom: string; prenom: string } }) => r.utilisateur)
   const placesRestantes = cours.placesMax - participants.length
 
+  // Vérifie si l'utilisateur connecté est déjà inscrit
+  const userId = req.user?.id
+  const dejaInscrit = userId
+    ? cours.reservations.some((r: { utilisateurId: number }) => r.utilisateurId === userId)
+    : false
+
   res.json({
     success: true,
     message: placesRestantes > 0
       ? `${placesRestantes} place(s) restante(s) sur ${cours.placesMax}`
       : 'Ce cours est complet',
-    data: { ...cours, participants, nbParticipants: participants.length, placesRestantes }
+    data: { ...cours, participants, nbParticipants: participants.length, placesRestantes, dejaInscrit }
   })
 }
 

@@ -7,6 +7,17 @@ export interface AuthRequest extends Request {
   user?: { id: number; role: Role }
 }
 
+export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization
+  if (header?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET!) as { id: number; role: Role }
+      req.user = payload
+    } catch {}
+  }
+  next()
+}
+
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {

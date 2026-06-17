@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth, optionalAuth } from '../middleware/auth'
 import { adminOrCoach } from '../middleware/adminOrCoach'
 import { listCours, getCours, reserver, annulerReservation, noterCours, getMessages, sendMessage } from '../controllers/coursController'
 import { updateStatutSeance } from '../controllers/adminController'
@@ -35,7 +35,7 @@ router.get('/', listCours)
  *       404:
  *         description: Cours introuvable
  */
-router.get('/:id', getCours)
+router.get('/:id', optionalAuth, getCours)
 
 /**
  * @openapi
