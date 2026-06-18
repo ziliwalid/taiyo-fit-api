@@ -111,7 +111,7 @@ router.post('/:id/reserver', reserver)
  *       403:
  *         description: Réservé aux coachs et à l'admin
  */
-router.patch('/:id/message', adminOrCoach, updateStatutSeance)
+router.patch('/:id/message', requireAuth, adminOrCoach, updateStatutSeance)
 router.post('/:id/noter',    requireAuth, noterCours)
 router.get('/:id/messages',  requireAuth, getMessages)
 router.post('/:id/messages', requireAuth, sendMessage)
