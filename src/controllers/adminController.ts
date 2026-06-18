@@ -442,7 +442,12 @@ export async function listMembres(req: Request, res: Response) {
 
 export async function listCoachesDetailed(req: Request, res: Response) {
   const coachs = await prisma.utilisateur.findMany({
-    where: { role: Role.COACH },
+    where: {
+      OR: [
+        { role: Role.COACH },
+        { role: Role.ADMIN, coach: { isNot: null } },
+      ]
+    },
     select: {
       id: true, nom: true, prenom: true, email: true, telephone: true,
       actif: true, createdAt: true,
