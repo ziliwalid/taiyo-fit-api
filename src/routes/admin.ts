@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
 import { parseId } from '../lib/validate'
-import { getParticipants, updateReservation, createCours, listAllCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
+import { getParticipants, updateReservation, createCours, listAllCours, createPack, updatePack, deletePack, adminListPacks, togglePackActif, assignPack, createCoach, listCoaches, updateCoach, updateStatutSeance, listMembres, listCoachesDetailed, toggleActif, getStats, listTransactions, listNotifications, marquerNotificationsLues } from '../controllers/adminController'
 import { listDemandes, validerDemande, refuserDemande } from '../controllers/demandePackController'
 import { adminListEvenements, createEvenement, updateEvenement, deleteEvenement } from '../controllers/evenementController'
 import { adminListLieux, createLieu, toggleLieu, deleteLieu, updateMapSettings } from '../controllers/lieuController'
@@ -398,6 +398,35 @@ router.post('/packs/assigner', assignPack)
  *         description: Email déjà utilisé
  */
 router.post('/coachs', createCoach)
+
+/**
+ * @openapi
+ * /admin/coachs/{id}:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Modifier le nom et/ou prénom d'un coach
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nom:    { type: string, example: "Taiyo Fit" }
+ *               prenom: { type: string, example: "Malak" }
+ *     responses:
+ *       200:
+ *         description: Coach mis à jour
+ *       404:
+ *         description: Coach introuvable
+ */
+router.patch('/coachs/:id', updateCoach)
 
 router.get('/packs/demandes', listDemandes)
 

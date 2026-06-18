@@ -274,6 +274,30 @@ export async function listCoaches(req: Request, res: Response) {
   res.json({ success: true, message: `${coaches.length} coach(s)`, data: coaches })
 }
 
+export async function updateCoach(req: Request, res: Response) {
+  const id = parseId(req.params.id, res)
+  if (id === null) return
+  const { nom, prenom } = req.body
+  if (!nom?.trim() && !prenom?.trim()) {
+    res.status(400).json({ success: false, message: 'Au moins nom ou prenom requis.' })
+    return
+  }
+  const coach = await prisma.coach.findUnique({ where: { id } })
+  if (!coach) {
+    res.status(404).json({ success: false, message: 'Coach introuvable.' })
+    return
+  }
+  const updated = await prisma.coach.update({
+    where: { id },
+    data: {
+      ...(nom?.trim() && { nom: nom.trim() }),
+      ...(prenom?.trim() && { prenom: prenom.trim() }),
+    },
+    select: { id: true, nom: true, prenom: true }
+  })
+  res.json({ success: true, message: 'Coach mis à jour.', data: updated })
+}
+
 export async function updateStatutSeance(req: Request, res: Response) {
   const id = parseId(req.params.id, res)
   if (id === null) return
@@ -422,7 +446,7 @@ export async function listCoachesDetailed(req: Request, res: Response) {
     select: {
       id: true, nom: true, prenom: true, email: true, telephone: true,
       actif: true, createdAt: true,
-      coach: { select: { id: true, cours: { select: { id: true } } } }
+      coach: { select: { id: true, nom: true, prenom: true, cours: { select: { id: true } } } }
     },
     orderBy: { prenom: 'asc' }
   })
