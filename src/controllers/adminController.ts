@@ -301,7 +301,7 @@ export async function updateCoach(req: Request, res: Response) {
 export async function updateStatutSeance(req: Request, res: Response) {
   const id = parseId(req.params.id, res)
   if (id === null) return
-  const { statutSeance, messageCoach, genre } = req.body
+  const { statutSeance, messageCoach, genre, titre, coachId: bodyCoachId } = req.body
 
   if (genre !== undefined && genre !== null && !GENRES_VALIDES.includes(genre)) {
     res.status(400).json({ success: false, message: `Genre invalide. Valeurs acceptées : ${GENRES_VALIDES.join(', ')}` })
@@ -314,6 +314,25 @@ export async function updateStatutSeance(req: Request, res: Response) {
       message: `Statut invalide. Valeurs acceptées : ${Object.values(StatutSeance).join(', ')}`
     })
     return
+  }
+
+  if (titre !== undefined && (!titre || !titre.trim())) {
+    res.status(400).json({ success: false, message: 'Le titre ne peut pas être vide.' })
+    return
+  }
+
+  let newCoachId: number | undefined
+  if (bodyCoachId !== undefined) {
+    newCoachId = parseInt(String(bodyCoachId), 10)
+    if (isNaN(newCoachId) || newCoachId <= 0) {
+      res.status(400).json({ success: false, message: 'coachId invalide.' })
+      return
+    }
+    const coachExists = await prisma.coach.findUnique({ where: { id: newCoachId } })
+    if (!coachExists) {
+      res.status(404).json({ success: false, message: 'Coach introuvable.' })
+      return
+    }
   }
 
   const cours = await prisma.cours.findUnique({ where: { id } })
@@ -392,6 +411,8 @@ export async function updateStatutSeance(req: Request, res: Response) {
       ...(genre !== undefined && { genre: genre || null }),
       ...(newDateHeure !== undefined && { dateHeure: new Date(newDateHeure) }),
       ...(visible !== undefined && { visible }),
+      ...(titre?.trim() && { titre: titre.trim() }),
+      ...(newCoachId !== undefined && { coachId: newCoachId }),
     }
   })
 
