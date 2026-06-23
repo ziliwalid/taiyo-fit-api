@@ -701,14 +701,15 @@ export async function rembourserCoursEffectue(req: Request, res: Response) {
 
   const utilisateurIds = reservations.map(r => r.utilisateurId)
 
-  await prisma.$transaction(
-    utilisateurIds.map(uid =>
+  await prisma.$transaction([
+    prisma.cours.update({ where: { id }, data: { rembourseManuel: true } }),
+    ...utilisateurIds.map(uid =>
       prisma.comptePack.updateMany({
         where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
         data: { sessionsRestantes: { increment: 1 } },
       })
-    )
-  )
+    ),
+  ])
 
   const motifLog = `Remboursement admin · ${cours.titre} · ${motif.trim()}`
   utilisateurIds.forEach(uid => logSession(uid, +1, motifLog, id))

@@ -102,11 +102,12 @@ model Cours {
   notes               NoteCours[]
   messages            MessageCours[]
   statutSeance        StatutSeance  @default(PLANIFIE)
-  messageCoach String?
-  adresse      String?
-  imageUrl     String?
-  visible      Boolean       @default(true)
-  createdAt    DateTime      @default(now())
+  messageCoach    String?
+  adresse         String?
+  imageUrl        String?
+  visible         Boolean       @default(true)
+  rembourseManuel Boolean       @default(false)
+  createdAt       DateTime      @default(now())
 }
 
 enum GenreCours {
