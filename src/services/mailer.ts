@@ -177,10 +177,15 @@ export async function sendSeanceAnnuleeToMembre(data: {
       ${infoTable(`
         ${infoRow('Séance', data.coursTitre)}
         ${infoRow('Date', data.coursDate)}
-        ${infoRow('Session remboursée', `+${data.sessionsRendues} session${data.sessionsRendues > 1 ? 's' : ''} sur ton pack`)}
+        ${data.sessionsRendues > 0
+          ? infoRow('Session remboursée', `+${data.sessionsRendues} session${data.sessionsRendues > 1 ? 's' : ''} sur ton pack`)
+          : infoRow('Remboursement', 'Aucun — annulation tardive (règle 48h)')}
         ${infoRow('Solde restant', `${data.sessionsRestantes} session${data.sessionsRestantes > 1 ? 's' : ''} disponible${data.sessionsRestantes > 1 ? 's' : ''}`)}
       `)}
-      ${p('Ta session a été <strong style="color:#FFD700">remboursée automatiquement</strong> sur ton pack. Toutes nos excuses pour la gêne occasionnée.')}
+      ${data.sessionsRendues > 0
+        ? p('Ta session a été <strong style="color:#FFD700">remboursée automatiquement</strong> sur ton pack. Toutes nos excuses pour la gêne occasionnée.')
+        : p('Cette séance a été annulée dans un délai inférieur à 48h. Conformément aux conditions d\'utilisation, <strong style="color:rgba(255,255,255,0.7)">ta session n\'a pas été restituée</strong>. Pour toute question, contacte-nous directement.')
+      }
       ${btn('Réserver une autre séance', `${FRONTEND_URL}/catalog`)}
     `),
   })

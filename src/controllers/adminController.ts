@@ -350,10 +350,10 @@ export async function updateStatutSeance(req: Request, res: Response) {
     return
   }
 
-  const { adresse, imageUrl, dateHeure: newDateHeure, visible } = req.body
+  const { adresse, imageUrl, dateHeure: newDateHeure, visible, rembourserSessions = true } = req.body
   const isNewlyCancelled = statutSeance === StatutSeance.ANNULE
 
-  // ── Cancellation: refund sessions + cancel reservations atomically ────────
+  // ── Cancellation: cancel reservations + optionally refund sessions ────────
   let notifyList: { prenom: string; email: string; sessionsRestantes: number }[] = []
 
   if (isNewlyCancelled) {
@@ -366,21 +366,18 @@ export async function updateStatutSeance(req: Request, res: Response) {
       const utilisateurIds = reservations.map(r => r.utilisateurId)
 
       await prisma.$transaction([
-        // Cancel all active reservations
         prisma.reservation.updateMany({
           where: { coursId: id, statut: { not: StatutReservation.ANNULE } },
           data: { statut: StatutReservation.ANNULE },
         }),
-        // Refund 1 session to each member who had an active reservation
-        ...utilisateurIds.map(uid =>
+        ...(rembourserSessions ? utilisateurIds.map(uid =>
           prisma.comptePack.updateMany({
             where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
             data: { sessionsRestantes: { increment: 1 } },
           })
-        ),
+        ) : []),
       ])
 
-      // Fetch updated session counts for email notifications
       const comptes = await prisma.comptePack.findMany({
         where: { utilisateurId: { in: utilisateurIds } },
         select: { utilisateurId: true, sessionsRestantes: true },
@@ -395,9 +392,11 @@ export async function updateStatutSeance(req: Request, res: Response) {
           sessionsRestantes: comptesMap.get(r.utilisateurId)!,
         }))
 
-      utilisateurIds.forEach(uid =>
-        logSession(uid, +1, `Cours annulé · ${cours.titre}`, id)
-      )
+      if (rembourserSessions) {
+        utilisateurIds.forEach(uid =>
+          logSession(uid, +1, `Cours annulé · ${cours.titre}`, id)
+        )
+      }
     }
   }
 
@@ -427,7 +426,7 @@ export async function updateStatutSeance(req: Request, res: Response) {
         membreEmail:  email,
         coursTitre:   cours.titre,
         coursDate:    dateStr,
-        sessionsRendues: 1,
+        sessionsRendues:   rembourserSessions ? 1 : 0,
         sessionsRestantes,
       }).catch(() => {})
     })
@@ -437,7 +436,9 @@ export async function updateStatutSeance(req: Request, res: Response) {
     [StatutSeance.PLANIFIE]:     'Séance planifiée normalement.',
     [StatutSeance.EN_RETARD]:    'Séance signalée en retard.',
     [StatutSeance.LIEU_MODIFIE]: 'Changement de lieu signalé.',
-    [StatutSeance.ANNULE]:       `Séance annulée — ${notifyList.length} adhérent(s) remboursé(s) et notifié(s).`,
+    [StatutSeance.ANNULE]:       rembourserSessions
+      ? `Séance annulée — ${notifyList.length} adhérent(s) remboursé(s) et notifié(s).`
+      : `Séance annulée — ${notifyList.length} adhérent(s) notifié(s), sessions non remboursées.`,
     [StatutSeance.EFFECTUE]:     'Séance marquée comme effectuée.',
   }
 
