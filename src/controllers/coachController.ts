@@ -45,6 +45,48 @@ export async function getMonScore(req: AuthRequest, res: Response) {
   })
 }
 
+export async function getCoursAvis(req: AuthRequest, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+
+  const isAdmin = req.user!.role === 'ADMIN'
+
+  if (!isAdmin) {
+    const coach = await prisma.coach.findUnique({ where: { utilisateurId: req.user!.id } })
+    if (!coach) {
+      res.status(404).json({ success: false, message: 'Profil coach introuvable' })
+      return
+    }
+    const cours = await prisma.cours.findUnique({ where: { id: coursId }, select: { coachId: true } })
+    if (!cours) {
+      res.status(404).json({ success: false, message: 'Cours introuvable' })
+      return
+    }
+    if (cours.coachId !== coach.id) {
+      res.status(403).json({ success: false, message: "Vous n'êtes pas le coach de ce cours" })
+      return
+    }
+  }
+
+  const avis = await prisma.noteCours.findMany({
+    where: { coursId },
+    select: {
+      id: true,
+      note: true,
+      commentaire: true,
+      createdAt: true,
+      utilisateur: { select: { prenom: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const noteMoyenne = avis.length > 0
+    ? Math.round((avis.reduce((sum, a) => sum + a.note, 0) / avis.length) * 10) / 10
+    : null
+
+  res.json({ success: true, message: `${avis.length} avis`, data: { avis, noteMoyenne, nbNotes: avis.length } })
+}
+
 export async function getCoursParticipants(req: AuthRequest, res: Response) {
   const coursId = parseId(req.params.id, res)
   if (coursId === null) return
