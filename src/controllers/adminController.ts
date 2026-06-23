@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { Role, StatutReservation, StatutSeance, StatutPaiement, StatutDemande } from '@prisma/client'
 import prisma from '../lib/prisma'
-import { sendSeanceAnnuleeToMembre } from '../services/mailer'
+import { sendSeanceAnnuleeToMembre, sendRemboursementManuelToMembre } from '../services/mailer'
 import { logSession } from '../lib/logSession'
 import { parseId, zodFail } from '../lib/validate'
 
@@ -662,6 +662,81 @@ export async function getStats(req: Request, res: Response) {
         enAttente: demandesEnAttente,
       },
     },
+  })
+}
+
+export async function rembourserCoursEffectue(req: Request, res: Response) {
+  const id = parseId(req.params.id, res)
+  if (id === null) return
+
+  const { motif } = req.body
+  if (!motif?.trim()) {
+    res.status(400).json({ success: false, message: 'Le motif de remboursement est requis.' })
+    return
+  }
+  if (motif.trim().length > 300) {
+    res.status(400).json({ success: false, message: 'Motif trop long (max 300 caractères).' })
+    return
+  }
+
+  const cours = await prisma.cours.findUnique({ where: { id } })
+  if (!cours) {
+    res.status(404).json({ success: false, message: 'Cours introuvable.' })
+    return
+  }
+  if (cours.statutSeance !== StatutSeance.EFFECTUE) {
+    res.status(409).json({ success: false, message: 'Ce cours n\'est pas marqué comme effectué.' })
+    return
+  }
+
+  const reservations = await prisma.reservation.findMany({
+    where: { coursId: id, statut: { not: StatutReservation.ANNULE } },
+    include: { utilisateur: { select: { prenom: true, email: true } } },
+  })
+
+  if (reservations.length === 0) {
+    res.json({ success: true, message: 'Aucun participant inscrit à rembourser.', data: { nbRembourses: 0 } })
+    return
+  }
+
+  const utilisateurIds = reservations.map(r => r.utilisateurId)
+
+  await prisma.$transaction(
+    utilisateurIds.map(uid =>
+      prisma.comptePack.updateMany({
+        where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
+        data: { sessionsRestantes: { increment: 1 } },
+      })
+    )
+  )
+
+  const motifLog = `Remboursement admin · ${cours.titre} · ${motif.trim()}`
+  utilisateurIds.forEach(uid => logSession(uid, +1, motifLog, id))
+
+  const comptes = await prisma.comptePack.findMany({
+    where: { utilisateurId: { in: utilisateurIds } },
+    select: { utilisateurId: true, sessionsRestantes: true },
+  })
+  const comptesMap = new Map(comptes.map(c => [c.utilisateurId, c.sessionsRestantes]))
+
+  const dateStr = new Date(cours.dateHeure).toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  })
+
+  reservations.forEach(r => {
+    sendRemboursementManuelToMembre({
+      membrePrenom: r.utilisateur.prenom,
+      membreEmail:  r.utilisateur.email,
+      coursTitre:   cours.titre,
+      coursDate:    dateStr,
+      sessionsRestantes: comptesMap.get(r.utilisateurId) ?? 0,
+    }).catch(() => {})
+  })
+
+  res.json({
+    success: true,
+    message: `${reservations.length} participant(s) remboursé(s) et notifié(s).`,
+    data: { nbRembourses: reservations.length },
   })
 }
 

@@ -191,6 +191,33 @@ export async function sendSeanceAnnuleeToMembre(data: {
   })
 }
 
+// Membre — remboursement manuel par l'admin (cours effectué)
+export async function sendRemboursementManuelToMembre(data: {
+  membrePrenom: string
+  membreEmail: string
+  coursTitre: string
+  coursDate: string
+  sessionsRestantes: number
+}) {
+  await send({
+    template: 'remboursement-manuel',
+    to: data.membreEmail,
+    subject: `Remboursement de session — ${data.coursTitre}`,
+    html: layout(`
+      ${tag('Remboursement de session')}
+      ${h1(`Tu as reçu un remboursement, ${data.membrePrenom}`)}
+      ${infoTable(`
+        ${infoRow('Séance', data.coursTitre)}
+        ${infoRow('Date', data.coursDate)}
+        ${infoRow('Session remboursée', '+1 session sur ton pack')}
+        ${infoRow('Solde restant', `${data.sessionsRestantes} session${data.sessionsRestantes > 1 ? 's' : ''} disponible${data.sessionsRestantes > 1 ? 's' : ''}`)}
+      `)}
+      ${p('Une session a été <strong style="color:#FFD700">créditée sur ton pack</strong> suite à un geste commercial de notre part. Toutes nos excuses pour la gêne occasionnée.')}
+      ${btn('Réserver une séance', `${FRONTEND_URL}/catalog`)}
+    `),
+  })
+}
+
 // Admin — annulation de réservation par un membre
 export async function sendAnnulationReservationToAdmin(data: {
   membrePrenom: string
