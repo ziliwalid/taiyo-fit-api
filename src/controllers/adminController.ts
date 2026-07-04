@@ -72,13 +72,92 @@ export async function getParticipants(req: Request, res: Response) {
   if (coursId === null) return
   const reservations = await prisma.reservation.findMany({
     where: { coursId, statut: { not: StatutReservation.ANNULE } },
-    include: { utilisateur: { select: { nom: true, prenom: true, telephone: true } } }
+    include: { utilisateur: { select: { id: true, nom: true, prenom: true, telephone: true } } }
   })
-  const participants = reservations.map((r: { utilisateur: { nom: string; prenom: string; telephone: string | null } }) => r.utilisateur)
+  const participants = reservations.map((r) => ({
+    utilisateurId: r.utilisateur.id,
+    nom:           r.utilisateur.nom,
+    prenom:        r.utilisateur.prenom,
+    telephone:     r.utilisateur.telephone,
+  }))
   res.json({
     success: true,
     message: `${participants.length} participant(s) inscrit(s) à ce cours`,
     data: participants
+  })
+}
+
+export async function rembourserMembre(req: Request, res: Response) {
+  const coursId = parseId(req.params.id, res)
+  if (coursId === null) return
+
+  const { utilisateurId, motif } = req.body
+
+  const uid = parseInt(String(utilisateurId), 10)
+  if (isNaN(uid) || uid <= 0) {
+    res.status(400).json({ success: false, message: 'utilisateurId invalide.' })
+    return
+  }
+  if (!motif?.trim()) {
+    res.status(400).json({ success: false, message: 'Le motif est requis.' })
+    return
+  }
+  if (motif.trim().length > 300) {
+    res.status(400).json({ success: false, message: 'Motif trop long (max 300 caractères).' })
+    return
+  }
+
+  const cours = await prisma.cours.findUnique({ where: { id: coursId } })
+  if (!cours) {
+    res.status(404).json({ success: false, message: 'Cours introuvable.' })
+    return
+  }
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { utilisateurId_coursId: { utilisateurId: uid, coursId } },
+  })
+  if (!reservation || reservation.statut === StatutReservation.ANNULE) {
+    res.status(404).json({ success: false, message: 'Aucune réservation active pour cet adhérent sur ce cours.' })
+    return
+  }
+
+  const utilisateur = await prisma.utilisateur.findUnique({
+    where: { id: uid },
+    select: { prenom: true, email: true },
+  })
+  if (!utilisateur) {
+    res.status(404).json({ success: false, message: 'Adhérent introuvable.' })
+    return
+  }
+
+  await prisma.comptePack.updateMany({
+    where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
+    data: { sessionsRestantes: { increment: 1 } },
+  })
+
+  logSession(uid, +1, `Remboursement admin individuel · ${cours.titre} · ${motif.trim()}`, coursId)
+
+  const compte = await prisma.comptePack.findUnique({
+    where: { utilisateurId: uid },
+    select: { sessionsRestantes: true },
+  })
+
+  const dateStr = new Date(cours.dateHeure).toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  })
+
+  sendRemboursementManuelToMembre({
+    membrePrenom:      utilisateur.prenom,
+    membreEmail:       utilisateur.email,
+    coursTitre:        cours.titre,
+    coursDate:         dateStr,
+    sessionsRestantes: compte?.sessionsRestantes ?? 0,
+  }).catch(() => {})
+
+  res.json({
+    success: true,
+    message: `${utilisateur.prenom} remboursé(e) — +1 session.`,
+    data: { utilisateurId: uid, sessionsRestantes: compte?.sessionsRestantes ?? 0 },
   })
 }
 
