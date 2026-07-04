@@ -135,8 +135,18 @@ export async function rembourserMembre(req: Request, res: Response) {
     data: { sessionsRestantes: { increment: 1 } },
   })
 
-  logSession(uid, +1, `Remboursement admin individuel · ${cours.titre} · ${motif.trim()}`, coursId)
+  // Motif visible par le membre dans son historique — sans le motif interne admin
+  logSession(uid, +1, `Séance remboursée · ${cours.titre}`, coursId)
 
+  // Motif interne visible uniquement par Malak via les notifications admin
+  prisma.notification.create({
+    data: {
+      utilisateurId: null,
+      message: `Remboursement individuel · ${cours.titre} · ${utilisateur.prenom} · Motif : ${motif.trim()}`,
+    },
+  }).catch(() => {})
+
+  // Notification one-shot pour le membre sur son dashboard
   prisma.notification.create({
     data: {
       utilisateurId: uid,
@@ -797,8 +807,15 @@ export async function rembourserCoursEffectue(req: Request, res: Response) {
     ),
   ])
 
-  const motifLog = `Remboursement admin · ${cours.titre} · ${motif.trim()}`
-  utilisateurIds.forEach(uid => logSession(uid, +1, motifLog, id))
+  utilisateurIds.forEach(uid => logSession(uid, +1, `Séance remboursée · ${cours.titre}`, id))
+
+  // Trace interne admin avec le motif complet
+  prisma.notification.create({
+    data: {
+      utilisateurId: null,
+      message: `Remboursement collectif · ${cours.titre} (${utilisateurIds.length} adhérent(s)) · Motif : ${motif.trim()}`,
+    },
+  }).catch(() => {})
 
   const comptes = await prisma.comptePack.findMany({
     where: { utilisateurId: { in: utilisateurIds } },
