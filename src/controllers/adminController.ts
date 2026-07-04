@@ -130,10 +130,16 @@ export async function rembourserMembre(req: Request, res: Response) {
     return
   }
 
-  await prisma.comptePack.updateMany({
-    where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
-    data: { sessionsRestantes: { increment: 1 } },
-  })
+  await prisma.$transaction([
+    prisma.comptePack.updateMany({
+      where: { utilisateurId: uid, sessionsRestantes: { gte: 0 } },
+      data: { sessionsRestantes: { increment: 1 } },
+    }),
+    prisma.reservation.update({
+      where: { utilisateurId_coursId: { utilisateurId: uid, coursId } },
+      data: { statut: StatutReservation.ANNULE },
+    }),
+  ])
 
   // Motif visible par le membre dans son historique — sans le motif interne admin
   logSession(uid, +1, `Séance remboursée · ${cours.titre}`, coursId)
