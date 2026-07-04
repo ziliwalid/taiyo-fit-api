@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
-import { getMonPack, getMonDashboard, getHistoriqueSessions, getProfil, updateProfil } from '../controllers/packController'
+import { getMonPack, getMonDashboard, getHistoriqueSessions, getProfil, updateProfil, getMesNotifications, marquerMesNotificationsLues } from '../controllers/packController'
 import { demanderPack } from '../controllers/demandePackController'
 
 const router = Router()
@@ -114,6 +114,8 @@ router.patch('/profil',   updateProfil)
  *       404:
  *         description: Pack introuvable
  */
-router.post('/pack/demander', demanderPack)
+router.post('/pack/demander',           demanderPack)
+router.get('/notifications',            getMesNotifications)
+router.patch('/notifications/lire',     marquerMesNotificationsLues)
 
 export default router

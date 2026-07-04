@@ -212,3 +212,22 @@ export async function getHistoriqueSessions(req: AuthRequest, res: Response) {
   })
   res.json({ success: true, message: 'OK', data: historique })
 }
+
+export async function getMesNotifications(req: AuthRequest, res: Response) {
+  const userId = req.user!.id
+  const notifications = await prisma.notification.findMany({
+    where: { utilisateurId: userId, lu: false },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, message: true, createdAt: true },
+  })
+  res.json({ success: true, message: 'OK', data: notifications })
+}
+
+export async function marquerMesNotificationsLues(req: AuthRequest, res: Response) {
+  const userId = req.user!.id
+  await prisma.notification.updateMany({
+    where: { utilisateurId: userId, lu: false },
+    data: { lu: true },
+  })
+  res.json({ success: true, message: 'OK', data: null })
+}

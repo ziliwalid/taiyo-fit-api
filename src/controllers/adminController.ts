@@ -137,6 +137,13 @@ export async function rembourserMembre(req: Request, res: Response) {
 
   logSession(uid, +1, `Remboursement admin individuel · ${cours.titre} · ${motif.trim()}`, coursId)
 
+  prisma.notification.create({
+    data: {
+      utilisateurId: uid,
+      message: `+1 session créditée sur ton pack suite à un remboursement pour la séance "${cours.titre}".`,
+    },
+  }).catch(() => {})
+
   const compte = await prisma.comptePack.findUnique({
     where: { utilisateurId: uid },
     select: { sessionsRestantes: true },
@@ -822,6 +829,7 @@ export async function rembourserCoursEffectue(req: Request, res: Response) {
 
 export async function listNotifications(_req: Request, res: Response) {
   const notifications = await prisma.notification.findMany({
+    where: { utilisateurId: null },
     orderBy: { createdAt: 'desc' },
     take: 30,
   })
@@ -829,6 +837,6 @@ export async function listNotifications(_req: Request, res: Response) {
 }
 
 export async function marquerNotificationsLues(_req: Request, res: Response) {
-  await prisma.notification.updateMany({ where: { lu: false }, data: { lu: true } })
+  await prisma.notification.updateMany({ where: { lu: false, utilisateurId: null }, data: { lu: true } })
   res.json({ success: true, message: 'Notifications marquées comme lues.', data: null })
 }
